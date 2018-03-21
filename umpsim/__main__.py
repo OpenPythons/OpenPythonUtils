@@ -1,3 +1,4 @@
+import pickle
 import sys
 import time
 from pathlib import Path
@@ -44,6 +45,8 @@ STACK_SIZE = 1024 * 32
 
 
 firmware = Path("../firmware/firmware_minimal.bin").read_bytes()
+print("firmware", len(firmware), "bytes")
+
 emu = Uc(UC_ARCH_ARM, UC_MODE_THUMB)
 cs = Cs(CS_ARCH_ARM, CS_MODE_THUMB)
 
@@ -53,8 +56,9 @@ def from_bytes(b):
 def to_bytes(n):
     return int.to_bytes(n, 4, byteorder="little")
 
+INST_SIZE = 2
 def debug_addr(addr, count=1):
-    for inst in cs.disasm(firmware[addr - FLASH_ADDRESS:addr - FLASH_ADDRESS + 2 * count], addr, count):
+    for inst in cs.disasm(firmware[addr - FLASH_ADDRESS:addr - FLASH_ADDRESS + INST_SIZE * count], addr, count):
         print(hex(inst.address), inst.mnemonic, inst.op_str)
 
 source = """
@@ -122,6 +126,12 @@ try:
     emu.mem_write(FLASH_ADDRESS, firmware)
     emu.mem_write(FLASH_ADDRESS, to_bytes(sp))
 
+    total_size = 0
+    for mem_start, mem_end, perm in emu.mem_regions():
+        total_size += mem_end - mem_start
+        print("memory:", hex(mem_start), hex(mem_end - mem_start), perm)
+    print("memory total:", total_size / 1024, "kb")
+
     emu.hook_add(UC_HOOK_MEM_READ, hook_read, None, PERIPHERAL_ADDRESS, PERIPHERAL_ADDRESS + PERIPHERAL_SIZE)
     emu.hook_add(UC_HOOK_MEM_WRITE, hook_write, None, PERIPHERAL_ADDRESS, PERIPHERAL_ADDRESS + PERIPHERAL_SIZE)
 
@@ -134,13 +144,10 @@ try:
         emu.emu_start(addr | 1, FLASH_ADDRESS + FLASH_SIZE, 0, 10000)
         # debug_addr(addr)
 
-
 except UcError as e:
     print("ERROR:", e)
-    debug_addr(addr - 8, count=3)
+    debug_addr(addr - INST_SIZE * 4, count=3)
     print(">", end=" ")
     debug_addr(addr)
-    debug_addr(addr + 2, count=3)
-    print(hex(emu.reg_read(UC_ARM_REG_R3)))
-    print(hex(emu.reg_read(UC_ARM_REG_R0)))
-    print(hex(emu.reg_read(UC_ARM_REG_R4)))
+    debug_addr(addr + INST_SIZE, count=3)
+    print(hex(emu.reg_read(UC_ARM_REG_R2)))
