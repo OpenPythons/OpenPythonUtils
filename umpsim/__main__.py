@@ -32,13 +32,13 @@ PERIPHERAL_SIZE = 0x10000
 UART0_TXR = 0x40000000
 UART0_RXR = 0x40000004
 
-UNICORN_CONTROLLER_PENDING = 0x40000100
-UNICORN_CONTROLLER_EXCEPTION = 0x40000104
-UNICORN_CONTROLLER_INTR_CHAR = 0x40000108
-UNICORN_CONTROLLER_RAM_SIZE = 0x4000010c
-UNICORN_CONTROLLER_STACK_SIZE = 0x40000110
-UNICORN_CONTROLLER_IDLE = 0x40000114
-UNICORN_CONTROLLER_INSNS = 0x40000118
+UMPORT_CONTROLLER_PENDING = 0x40000100
+UMPORT_CONTROLLER_EXCEPTION = 0x40000104
+UMPORT_CONTROLLER_INTR_CHAR = 0x40000108
+UMPORT_CONTROLLER_RAM_SIZE = 0x4000010c
+UMPORT_CONTROLLER_STACK_SIZE = 0x40000110
+UMPORT_CONTROLLER_IDLE = 0x40000114
+UMPORT_CONTROLLER_INSNS = 0x40000118
 
 CYCLE_LIMIT = 50000
 RAM_SIZE = 1024 * 128
@@ -77,9 +77,9 @@ ichr_addr = 0
 stack = list(("\r\n".join(source.strip().splitlines()) + '\r\n').encode())
 
 def hook_read(uc: Uc, access, address, size, value, data):
-    if address == UNICORN_CONTROLLER_RAM_SIZE:
+    if address == UMPORT_CONTROLLER_RAM_SIZE:
         emu.mem_write(address, to_bytes(RAM_SIZE))
-    elif address == UNICORN_CONTROLLER_STACK_SIZE:
+    elif address == UMPORT_CONTROLLER_STACK_SIZE:
         emu.mem_write(address, to_bytes(STACK_SIZE))
     elif address == UART0_RXR:
         if stack:
@@ -94,14 +94,14 @@ def hook_read(uc: Uc, access, address, size, value, data):
 
 def hook_write(uc: Uc, access, address, size, value, data):
     global pending_addr, exception_addr, ichr_addr
-    if address == UNICORN_CONTROLLER_PENDING:
+    if address == UMPORT_CONTROLLER_PENDING:
         pending_addr = addr
-        print("UNICORN_CONTROLLER_PENDING", value)
-    elif address == UNICORN_CONTROLLER_EXCEPTION:
-        print("UNICORN_CONTROLLER_EXCEPTION", value)
+        print("UMPORT_CONTROLLER_PENDING", value)
+    elif address == UMPORT_CONTROLLER_EXCEPTION:
+        print("UMPORT_CONTROLLER_EXCEPTION", value)
         exception_addr = to_bytes(value)
-    elif address == UNICORN_CONTROLLER_INTR_CHAR:
-        print("UNICORN_CONTROLLER_INTR_CHAR", value)
+    elif address == UMPORT_CONTROLLER_INTR_CHAR:
+        print("UMPORT_CONTROLLER_INTR_CHAR", value)
         ichr_addr = value
     elif address == UART0_TXR:
         print(chr(value), end="")
