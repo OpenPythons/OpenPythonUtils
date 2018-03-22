@@ -29,8 +29,11 @@ RAM_ADDRESS = 0x20000000
 MAX_RAM_SIZE = 0x40000
 PERIPHERAL_ADDRESS = 0x40000000
 PERIPHERAL_SIZE = 0x10000
+
 UART0_TXR = 0x40000000
 UART0_RXR = 0x40000004
+RTC_TICKS_MS = 0x40000300
+RTC_TICKS_US = 0x40000304
 
 UMPORT_CONTROLLER_PENDING = 0x40000100
 UMPORT_CONTROLLER_EXCEPTION = 0x40000104
@@ -55,7 +58,7 @@ def from_bytes(b):
     return int.from_bytes(b, byteorder="little")
 
 def to_bytes(n):
-    return int.to_bytes(n, 4, byteorder="little")
+    return int.to_bytes(n & 0xFFFFFFFF, 4, byteorder="little")
 
 INST_SIZE = 2
 def debug_addr(addr, count=1):
@@ -71,6 +74,7 @@ return 3
 hello()
 """
 
+epoch = time.time()
 pending_addr = 0
 exception_addr = 0
 ichr_addr = 0
@@ -86,6 +90,10 @@ def hook_read(uc: Uc, access, address, size, value, data):
             emu.mem_write(address, to_bytes(stack.pop(0)))
         else:
             emu.mem_write(address, to_bytes(0))
+    elif address == RTC_TICKS_MS:
+        emu.mem_write(address, to_bytes(int((time.time() - epoch) * 1000)))
+    elif address == RTC_TICKS_US:
+        emu.mem_write(address, to_bytes(int((time.time() - epoch) * 1000 * 1000)))
     else:
         print("read", access, hex(address), size, value, data)
 
