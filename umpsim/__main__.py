@@ -1,3 +1,4 @@
+import msvcrt
 import pickle
 import sys
 import time
@@ -83,6 +84,8 @@ def hook_read(uc: Uc, access, address, size, value, data):
     elif address == UART0_RXR:
         if stack:
             emu.mem_write(address, to_bytes(stack.pop(0)))
+        else:
+            emu.mem_write(address, to_bytes(0))
             #if not stack:
             #    emu.mem_write(pending_addr, exception_addr)
     else:
@@ -143,6 +146,10 @@ try:
         addr = emu.reg_read(UC_ARM_REG_PC)
         emu.emu_start(addr | 1, FLASH_ADDRESS + FLASH_SIZE, 0, 10000)
         # debug_addr(addr)
+
+        if msvcrt.kbhit():
+            ch = msvcrt.getch()
+            stack.append(ord(ch))
 
 except UcError as e:
     print("ERROR:", e)
