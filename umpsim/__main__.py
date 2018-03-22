@@ -48,7 +48,9 @@ RAM_SIZE = 1024 * 128
 STACK_SIZE = 1024 * 32
 
 
-firmware = (Path(__file__).parent / "../firmware/firmware.bin").read_bytes()
+firmware_path = (Path(__file__).parent / "../umport/build/firmware.bin").absolute().relative_to(Path.cwd())
+firmware = firmware_path.read_bytes()
+print("firmware from:", firmware_path)
 print("firmware", len(firmware), "bytes")
 
 emu = Uc(UC_ARCH_ARM, UC_MODE_THUMB)
