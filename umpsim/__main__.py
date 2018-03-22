@@ -117,6 +117,13 @@ def hook_write(uc: Uc, access, address, size, value, data):
     else:
         print("write", access, hex(address), size, value, data)
 
+has_error = False
+def hook_unmapped(uc: Uc, access, address, size, value, data):
+    global has_error
+    print("unmapped:", access, hex(address), size, value, data)
+    uc.emu_stop()
+    has_error = True
+
 #if 1:
 #    addr = 0x08000000
 #    for i in range(100):
@@ -143,6 +150,7 @@ try:
         print("memory:", hex(mem_start), hex(mem_end - mem_start), perm)
     print("memory total:", total_size / 1024, "kb")
 
+    emu.hook_add(UC_HOOK_MEM_READ_UNMAPPED, hook_unmapped)
     emu.hook_add(UC_HOOK_MEM_READ, hook_read, None, PERIPHERAL_ADDRESS, PERIPHERAL_ADDRESS + PERIPHERAL_SIZE)
     emu.hook_add(UC_HOOK_MEM_WRITE, hook_write, None, PERIPHERAL_ADDRESS, PERIPHERAL_ADDRESS + PERIPHERAL_SIZE)
 
@@ -159,10 +167,14 @@ try:
             ch = msvcrt.getch()
             stack.append(ord(ch))
 
+        if has_error:
+            raise UcError(0)
+
 except UcError as e:
     print("ERROR:", e)
     debug_addr(addr - INST_SIZE * 4, count=3)
     print(">", end=" ")
     debug_addr(addr)
     debug_addr(addr + INST_SIZE, count=3)
-    print(hex(emu.reg_read(UC_ARM_REG_R2)))
+    print(hex(emu.reg_read(UC_ARM_REG_R1)))
+    print(hex(emu.reg_read(UC_ARM_REG_R4)))
