@@ -86,8 +86,6 @@ def hook_read(uc: Uc, access, address, size, value, data):
             emu.mem_write(address, to_bytes(stack.pop(0)))
         else:
             emu.mem_write(address, to_bytes(0))
-            #if not stack:
-            #    emu.mem_write(pending_addr, exception_addr)
     else:
         print("read", access, hex(address), size, value, data)
 
