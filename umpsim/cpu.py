@@ -1,4 +1,3 @@
-import msvcrt
 import sys
 import time
 
@@ -56,10 +55,6 @@ class CPU:
         addr = self.uc.reg_read(UC_ARM_REG_PC)
         self.uc.emu_start(addr | 1, MemoryMap.FLASH.address_until, 0, self.state.cycle)
         # debug_addr(addr)
-
-        if msvcrt.kbhit():
-            ch = msvcrt.getch()
-            self.state.stack.append(ord(ch))
 
         if self.has_error:
             raise UcError(0)
