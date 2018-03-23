@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from umpsim.exc import UmpsimFirmwareMissingException
+
 
 class Firmware:
     def __init__(self, path: Path):
@@ -14,7 +16,7 @@ class Firmware:
 
     def refresh(self):
         if not self.path.exists():
-            raise Exception
+            raise UmpsimFirmwareMissingException()
 
         mtime = self.path.stat().st_mtime_ns
         if self.last_mtime != mtime:
