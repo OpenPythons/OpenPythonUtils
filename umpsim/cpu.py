@@ -140,7 +140,7 @@ class CPU:
 
     def debug_addr(self, addr, count=1):
         INST_SIZE = 2
-        firmware = memoryview(self.firmware.buffer)
+        firmware = self.firmware.buffer
         flash_address = MemoryMap.FLASH.address
         for inst in self.cs.disasm(
                 firmware[addr - flash_address:addr - flash_address + INST_SIZE * count], addr, count):
