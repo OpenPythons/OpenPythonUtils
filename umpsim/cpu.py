@@ -3,9 +3,10 @@ import time
 
 from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB
 from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE, UcError, \
-    UC_HOOK_MEM_READ_UNMAPPED
+    UC_HOOK_MEM_READ_UNMAPPED, UC_ERR_READ_UNMAPPED, UC_HOOK_CODE
 from unicorn.arm_const import *
 
+from umpsim.debugger import HELPER_FUNCTIONS
 from .address import MemoryMap, MemoryRegion, PeripheralAddress
 from .context import CpuContext
 from .firmware import Firmware
@@ -39,7 +40,13 @@ class CPU:
         self.uc.reg_write(UC_ARM_REG_PC, addr)
 
     def run(self):
+        self.uc.hook_add(UC_HOOK_CODE, self.hook_inst)
+        self.last_addr = None
         INST_SIZE = 2
+
+        self.last_func = self.firmware.mapping[self.uc.reg_read(UC_ARM_REG_PC)]
+        print(self.last_func)
+
         try:
             while self.step():
                 pass
@@ -54,12 +61,22 @@ class CPU:
     def step(self):
         addr = self.uc.reg_read(UC_ARM_REG_PC)
         self.uc.emu_start(addr | 1, MemoryMap.FLASH.address_until, 0, self.state.cycle)
-        # debug_addr(addr)
 
         if self.has_error:
             raise UcError(0)
 
         return True
+
+    def hook_inst(self, uc: Uc, address, size, data):
+        func = self.firmware.mapping[address]
+        if func in HELPER_FUNCTIONS:
+            return
+
+        if self.last_func != func:
+            self.last_func = func
+            print("#inst", hex(address), func)
+
+        self.last_addr = address
 
     def init_memory(self):
         for region in MemoryMap:  # type: MemoryRegion
