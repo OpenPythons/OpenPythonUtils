@@ -136,10 +136,9 @@ class CPU:
             print("write", access, hex(address), size, value, data)
 
     def hook_unmapped(self, uc: Uc, access, address, size, value, data):
-        global has_error
         print("unmapped:", access, hex(address), size, value, data)
         uc.emu_stop()
-        has_error = True
+        self.has_error = True
 
     def report_memory(self):
         total_size = 0
