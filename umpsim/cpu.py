@@ -4,7 +4,7 @@ import time
 from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB
 from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE, UcError, \
     UC_HOOK_MEM_READ_UNMAPPED
-from unicorn.arm_const import UC_ARM_REG_PC
+from unicorn.arm_const import *
 
 from .address import MemoryMap, MemoryRegion, PeripheralAddress
 from .context import CpuContext
