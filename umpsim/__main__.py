@@ -9,7 +9,7 @@ def main():
     firmware = default_firmware
     state = CpuState()
     context = CpuContext()
-    cpu = CPU(firmware, state, context)
+    cpu = CPU(firmware, state, context, verbose=1)
 
     def reader():
         while True:

@@ -3,7 +3,7 @@ import time
 
 from capstone import Cs, CsInsn, CS_ARCH_ARM, CS_MODE_THUMB
 from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE, UcError, \
-    UC_HOOK_MEM_READ_UNMAPPED, UC_ERR_READ_UNMAPPED, UC_HOOK_CODE
+    UC_HOOK_MEM_READ_UNMAPPED, UC_ERR_READ_UNMAPPED, UC_HOOK_CODE, UC_HOOK_INTR
 from unicorn.arm_const import *
 
 from umpsim.debugger import HELPER_FUNCTIONS
@@ -15,13 +15,14 @@ from .util import to_bytes, from_bytes
 
 
 class CPU:
-    def __init__(self, firmware: Firmware, state: CpuState, context: CpuContext = None):
+    def __init__(self, firmware: Firmware, state: CpuState, context: CpuContext = None, verbose=0):
         self.firmware = firmware
         self.uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB)
         self.cs = Cs(CS_ARCH_ARM, CS_MODE_THUMB)
         self.context = CpuContext(self.uc) if context is None else context.with_uc(self.uc)
         self.state = state
         self.has_error = None
+        self.verbose = verbose
         self.init()
 
     def init(self):
@@ -36,16 +37,15 @@ class CPU:
         addr = from_bytes(self.firmware[4:8])
         self.uc.mem_write(MemoryMap.FLASH.address, self.firmware.buffer)
         self.uc.mem_write(MemoryMap.FLASH.address, to_bytes(sp))
-        self.uc.hook_add(UC_HOOK_MEM_READ_UNMAPPED, self.hook_unmapped)
         self.uc.reg_write(UC_ARM_REG_PC, addr)
 
     def run(self):
-        self.uc.hook_add(UC_HOOK_CODE, self.hook_inst)
         self.last_addr = None
         INST_SIZE = 2
 
         self.last_func = self.firmware.mapping[self.uc.reg_read(UC_ARM_REG_PC)]
-        print(self.last_func)
+        if self.verbose >= 2:
+            print(self.last_func)
 
         try:
             while self.step():
@@ -53,6 +53,7 @@ class CPU:
         except UcError as e:
             print("ERROR:", e)
             addr = self.uc.reg_read(UC_ARM_REG_PC)
+            # TODO: Thumb-2 code?
             self.debug_addr(addr - INST_SIZE * 4, count=3)
             print(">", end=" ")
             self.debug_addr(addr)
@@ -66,17 +67,6 @@ class CPU:
             raise UcError(0)
 
         return True
-
-    def hook_inst(self, uc: Uc, address, size, data):
-        func = self.firmware.mapping[address]
-        if func in HELPER_FUNCTIONS:
-            return
-
-        if self.last_func != func:
-            self.last_func = func
-            print("#inst", hex(address), func)
-
-        self.last_addr = address
 
     def init_memory(self):
         for region in MemoryMap:  # type: MemoryRegion
@@ -102,9 +92,20 @@ class CPU:
         )
 
         self.uc.hook_add(
+            UC_HOOK_MEM_READ_UNMAPPED,
+            self.hook_unmapped
+        )
+
+        self.uc.hook_add(
             UC_HOOK_INTR,
             self.hook_intr,
         )
+
+        if self.verbose >= 2:
+            self.uc.hook_add(
+                UC_HOOK_CODE,
+                self.hook_inst
+            )
 
     def hook_intr(self, uc:Uc, intno, user_data):
         print("#INTR", intno, user_data)
@@ -130,29 +131,42 @@ class CPU:
         elif address == PeripheralAddress.RTC_TICKS_US:
             uc.mem_write(address, to_bytes(int((time.time() - self.state.epoch) * 1000 * 1000)))
         else:
-            print("read", access, hex(address), size, value, data)
+            if self.verbose >= 1:
+                print("read", access, hex(address), size, value, data)
 
     def hook_peripheral_write(self, uc: Uc, access, address, size, value, data):
-        global pending_addr, exception_addr, ichr_addr
         if address == PeripheralAddress.UMPORT_CONTROLLER_PENDING:
-            print("UMPORT_CONTROLLER_PENDING", value)
-            # pending_addr = address
+            if self.verbose >= 1:
+                print("UMPORT_CONTROLLER_PENDING", value)
         elif address == PeripheralAddress.UMPORT_CONTROLLER_EXCEPTION:
-            print("UMPORT_CONTROLLER_EXCEPTION", value)
-            # exception_addr = to_bytes(value)
+            if self.verbose >= 1:
+                print("UMPORT_CONTROLLER_EXCEPTION", value)
         elif address == PeripheralAddress.UMPORT_CONTROLLER_INTR_CHAR:
-            # ichr_addr = value
-            print("UMPORT_CONTROLLER_INTR_CHAR", value)
+            if self.verbose >= 1:
+                print("UMPORT_CONTROLLER_INTR_CHAR", value)
         elif address == PeripheralAddress.UART0_TXR:
             print(chr(value), end="")
             sys.stdout.flush()
         else:
-            print("write", access, hex(address), size, value, data)
+            if self.verbose >= 1:
+                print("write", access, hex(address), size, value, data)
 
     def hook_unmapped(self, uc: Uc, access, address, size, value, data):
         print("unmapped:", access, hex(address), size, value, data)
         uc.emu_stop()
         self.has_error = True
+
+    def hook_inst(self, uc: Uc, address, size, data):
+        func = self.firmware.mapping[address]
+        if func in HELPER_FUNCTIONS:
+            return
+
+        if self.last_func != func:
+            self.last_func = func
+            print("#inst", hex(address), func)
+
+        self.last_addr = address
+
 
     def report_memory(self):
         total_size = 0
