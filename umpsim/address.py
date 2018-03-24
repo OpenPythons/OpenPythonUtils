@@ -1,7 +1,7 @@
 from enum import IntEnum, Enum
 from typing import NamedTuple
 
-from unicorn import UC_PROT_ALL
+from unicorn import UC_PROT_ALL, UC_PROT_READ, UC_PROT_WRITE, UC_PROT_EXEC
 
 
 class MemoryRegion(NamedTuple):
@@ -12,9 +12,9 @@ class MemoryRegion(NamedTuple):
 
 
 class MemoryMap(Enum):
-    FLASH = MemoryRegion(0x08000000, 0x100000, UC_PROT_ALL)
-    RAM = MemoryRegion(0x20000000, 0x40000, UC_PROT_ALL)
-    PERIPHERAL = MemoryRegion(0x40000000, 0x10000, UC_PROT_ALL)
+    FLASH = MemoryRegion(0x08000000, 0x100000, UC_PROT_READ | UC_PROT_EXEC)
+    RAM = MemoryRegion(0x20000000, 0x80000, UC_PROT_READ | UC_PROT_WRITE)
+    PERIPHERAL = MemoryRegion(0x40000000, 0x10000, UC_PROT_READ | UC_PROT_WRITE)
 
     @property
     def address(self) -> int:
