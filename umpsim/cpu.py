@@ -33,7 +33,7 @@ class CPU:
         self.init_misc()
 
     def init_misc(self):
-        sp = MemoryMap.RAM.address + self.state.ram_size
+        sp = MemoryMap.STACK.address_until
         addr = from_bytes(self.firmware[4:8])
         self.uc.mem_write(MemoryMap.FLASH.address, self.firmware.buffer)
         self.uc.mem_write(MemoryMap.FLASH.address, to_bytes(sp))

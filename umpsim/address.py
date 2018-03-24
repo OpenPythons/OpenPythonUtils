@@ -13,8 +13,10 @@ class MemoryRegion(NamedTuple):
 
 class MemoryMap(Enum):
     FLASH = MemoryRegion(0x08000000, 0x100000, UC_PROT_READ | UC_PROT_EXEC)
-    RAM = MemoryRegion(0x20000000, 0x80000, UC_PROT_READ | UC_PROT_WRITE)
+    SRAM = MemoryRegion(0x20000000, 0x80000, UC_PROT_READ | UC_PROT_WRITE)
+    STACK = MemoryRegion(0x3FFF0000, 0x10000, UC_PROT_READ | UC_PROT_WRITE)
     PERIPHERAL = MemoryRegion(0x40000000, 0x10000, UC_PROT_READ | UC_PROT_WRITE)
+    SYSCALL_BUFFER = MemoryRegion(0xE0100000, 0x10000, UC_PROT_READ)
 
     @property
     def address(self) -> int:
