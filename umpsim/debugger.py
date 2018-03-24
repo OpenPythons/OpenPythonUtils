@@ -18,4 +18,10 @@ HELPER_FUNCTIONS = {
     "readline",
     "strchr",
     "strcmp",
+    "snprintf",
+    "gc_free",
+    "m_free",
+    "qstr_hash",
+    "mp_map_lookup",
+    "mp_arg_parse_all",
 }
