@@ -101,6 +101,20 @@ class CPU:
             peripheral.address_until
         )
 
+        self.uc.hook_add(
+            UC_HOOK_INTR,
+            self.hook_intr,
+        )
+
+    def hook_intr(self, uc:Uc, intno, user_data):
+        print("#INTR", intno, user_data)
+        print(uc.reg_read(UC_ARM_REG_R0), uc.reg_read(UC_ARM_REG_R1), uc.reg_read(UC_ARM_REG_R2), uc.reg_read(UC_ARM_REG_R3))
+        uc.emu_stop()
+        uc.reg_write(UC_ARM_REG_R0, 16)
+        uc.reg_write(UC_ARM_REG_R1, 32)
+        uc.reg_write(UC_ARM_REG_R2, 0xffffffff)
+        uc.reg_write(UC_ARM_REG_R3, -16)
+
     def hook_peripheral_read(self, uc: Uc, access, address, size, value, data):
         if address == PeripheralAddress.UMPORT_CONTROLLER_RAM_SIZE:
             uc.mem_write(address, to_bytes(self.state.ram_size))
