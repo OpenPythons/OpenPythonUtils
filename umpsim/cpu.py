@@ -1,7 +1,7 @@
 import sys
 import time
 
-from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB
+from capstone import Cs, CsInsn, CS_ARCH_ARM, CS_MODE_THUMB
 from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE, UcError, \
     UC_HOOK_MEM_READ_UNMAPPED, UC_ERR_READ_UNMAPPED, UC_HOOK_CODE
 from unicorn.arm_const import *
@@ -151,9 +151,10 @@ class CPU:
     INST_SIZE = 2
 
     def debug_addr(self, addr, count=1):
-        INST_SIZE = 2
-        firmware = self.firmware.buffer
-        flash_address = MemoryMap.FLASH.address
-        for inst in self.cs.disasm(
-                firmware[addr - flash_address:addr - flash_address + INST_SIZE * count], addr, count):
-            print(hex(inst.address), inst.mnemonic, inst.op_str)
+        INST_SIZE = 4
+        try:
+            for inst in self.cs.disasm(self.uc.mem_read(addr, INST_SIZE * count), addr, count):  # type: CsInsn
+                print(hex(inst.address), hex(from_bytes(inst.bytes)), inst.mnemonic, inst.op_str)
+        except UcError as exc:
+            if exc.errno == UC_ERR_READ_UNMAPPED:
+                print("fail to read memory", hex(addr))
