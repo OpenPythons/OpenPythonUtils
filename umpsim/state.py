@@ -9,7 +9,7 @@ class CpuState:
         self.ram_size = MemoryMap.RAM.size - self.stack_size
         self.stack = []
         self.epoch = time.time()
-        self.cycle = 10000
+        self.cycle = 100000
 
     def verify(self):
         assert self.ram_size + self.stack_size <= MemoryMap.RAM.size, (self.ram_size, self.stack_size, MemoryMap.RAM.size)
