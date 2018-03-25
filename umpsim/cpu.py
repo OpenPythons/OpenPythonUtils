@@ -1,3 +1,4 @@
+import json
 import sys
 import time
 
@@ -8,25 +9,25 @@ from unicorn.arm_const import *
 
 from umpsim.debugger import HELPER_FUNCTIONS
 from .address import MemoryMap, MemoryRegion, PeripheralAddress
-from .context import CpuContext
 from .firmware import Firmware
 from .state import CpuState
 from .util import to_bytes, from_bytes
 
 
 class CPU:
-    def __init__(self, firmware: Firmware, state: CpuState, context: CpuContext = None, verbose=0):
+    def __init__(self, firmware: Firmware = None, state: CpuState = None, verbose=0):
         self.firmware = firmware
         self.uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB)
         self.cs = Cs(CS_ARCH_ARM, CS_MODE_THUMB)
-        self.context = CpuContext(self.uc) if context is None else context.with_uc(self.uc)
         self.state = state
         self.has_error = None
+        self.last_addr = None
+        self.ready = False
         self.verbose = verbose
-        self.init()
 
     def init(self):
-        self.firmware.refresh()
+        if self.firmware:
+            self.firmware.refresh()
         self.state.verify()
         self.init_memory()
         self.init_hook()
@@ -38,6 +39,9 @@ class CPU:
         self.uc.mem_write(MemoryMap.FLASH.address, to_bytes(sp))
 
     def init_firmware(self):
+        if not self.firmware:
+            raise Exception("firmware missing error")
+
         addr = MemoryMap.FLASH.address
         self.uc.mem_write(addr, self.firmware.buffer)
         self.uc.reg_write(UC_ARM_REG_PC, from_bytes(self.uc.mem_read(addr + 4, 4)))
@@ -46,12 +50,15 @@ class CPU:
             self.init_dyn_stack()
 
     def run(self):
-        self.last_addr = None
+        if not self.ready:
+            raise Exception("init() does not called")
+
         INST_SIZE = 2
 
-        self.last_func = self.firmware.mapping[self.uc.reg_read(UC_ARM_REG_PC)]
-        if self.verbose >= 2:
-            print(self.last_func)
+        if self.firmware:
+            self.last_func = self.firmware.mapping[self.uc.reg_read(UC_ARM_REG_PC)]
+            if self.verbose >= 2:
+                print(self.last_func)
 
         try:
             while self.step():
@@ -114,36 +121,39 @@ class CPU:
             )
 
     def hook_intr(self, uc: Uc, intno, user_data):
-        self.debug_addr(uc.reg_read(UC_ARM_REG_PC) - 20, 30)
+        # self.debug_addr(uc.reg_read(UC_ARM_REG_PC) - 40, 40)
         if intno == 2:
             swi = from_bytes(uc.mem_read(uc.reg_read(UC_ARM_REG_PC) - 2, 1))
-
-            print("SWI", swi, ":", uc.reg_read(UC_ARM_REG_R0), uc.reg_read(UC_ARM_REG_R1), uc.reg_read(UC_ARM_REG_R2),
-                  uc.reg_read(UC_ARM_REG_R3))
+            r0 = uc.reg_read(UC_ARM_REG_R0)
+            r1 = uc.reg_read(UC_ARM_REG_R1)
+            r2 = uc.reg_read(UC_ARM_REG_R2)
+            r3 = uc.reg_read(UC_ARM_REG_R3)
 
             if swi == 0:
                 print("done?")
                 print(intno, swi, ":", uc.reg_read(UC_ARM_REG_R0), uc.reg_read(UC_ARM_REG_R1),
                       uc.reg_read(UC_ARM_REG_R2), uc.reg_read(UC_ARM_REG_R3))
-                self.uc.reg_write(UC_ARM_REG_R0, 16)
-                self.uc.reg_write(UC_ARM_REG_R1, 32)
-                self.uc.reg_write(UC_ARM_REG_R2, 48)
-                self.uc.reg_write(UC_ARM_REG_R3, 64)
+                uc.reg_write(UC_ARM_REG_R0, 16)
+                uc.reg_write(UC_ARM_REG_R1, 32)
+                uc.reg_write(UC_ARM_REG_R2, 48)
+                uc.reg_write(UC_ARM_REG_R3, 64)
             elif swi == 1:
-                self.api_response(b"hello, world!")
-                print("response")
+                # TODO: address and size vaild required?
+                buffer = uc.mem_read(r0, r1).decode('utf-8', 'replace')
+                print(buffer)
+                self.api_response("hello")
                 self.uc.emu_stop()
-                self.uc.reg_write(UC_ARM_REG_R2, 48)
-                self.uc.reg_write(UC_ARM_REG_R3, 64)
             else:
                 self.has_error = True
-                self.uc.emu_stop()
-                exit()
 
-    def api_response(self, buf):
+            self.uc.emu_stop()
+
+    def api_response(self, *args):
+        bufs = json.dumps(args)
+        buf = bufs.encode("utf-8")
+        print(buf)
         self.uc.mem_write(MemoryMap.SYSCALL_BUFFER.address, buf)
-        self.uc.mem_write(MemoryMap.SYSCALL_BUFFER.address + len(buf), b"\0")
-        print(MemoryMap.SYSCALL_BUFFER.address)
+        self.uc.mem_write(MemoryMap.SYSCALL_BUFFER.address + len(buf), b'\0')
         self.uc.reg_write(UC_ARM_REG_R0, MemoryMap.SYSCALL_BUFFER.address)
         self.uc.reg_write(UC_ARM_REG_R1, len(buf))
 
@@ -188,9 +198,11 @@ class CPU:
         self.has_error = True
 
     def hook_inst(self, uc: Uc, address, size, data):
-        func = self.firmware.mapping[address]
-        if func in HELPER_FUNCTIONS:
-            return
+        func = None
+        if self.firmware:
+            func = self.firmware.mapping[address]
+            if func in HELPER_FUNCTIONS:
+                return
 
         if self.last_func != func:
             self.last_func = func
@@ -211,8 +223,10 @@ class CPU:
         INST_SIZE = 4
         try:
             for inst in self.cs.disasm(self.uc.mem_read(addr, INST_SIZE * count), addr, count):  # type: CsInsn
-                print(self.firmware.mapping[inst.address], hex(inst.address), hex(from_bytes(inst.bytes)),
-                      inst.mnemonic, inst.op_str)
+                if self.firmware:
+                    print(self.firmware.mapping[inst.address], end=" ")
+
+                print(hex(inst.address), hex(from_bytes(inst.bytes)), inst.mnemonic, inst.op_str)
         except UcError as exc:
             if exc.errno == UC_ERR_READ_UNMAPPED:
                 print("fail to read memory", hex(addr))
