@@ -211,7 +211,7 @@ class CPU:
         INST_SIZE = 4
         try:
             for inst in self.cs.disasm(self.uc.mem_read(addr, INST_SIZE * count), addr, count):  # type: CsInsn
-                print(hex(inst.address), hex(from_bytes(inst.bytes)), inst.mnemonic, inst.op_str)
+                print(self.firmware.mapping[inst.address], hex(inst.address), hex(from_bytes(inst.bytes)), inst.mnemonic, inst.op_str)
         except UcError as exc:
             if exc.errno == UC_ERR_READ_UNMAPPED:
                 print("fail to read memory", hex(addr))
