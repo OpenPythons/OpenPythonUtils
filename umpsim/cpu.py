@@ -114,13 +114,37 @@ class CPU:
             )
 
     def hook_intr(self, uc:Uc, intno, user_data):
-        print("#INTR", intno, user_data)
-        print(uc.reg_read(UC_ARM_REG_R0), uc.reg_read(UC_ARM_REG_R1), uc.reg_read(UC_ARM_REG_R2), uc.reg_read(UC_ARM_REG_R3))
-        uc.emu_stop()
-        uc.reg_write(UC_ARM_REG_R0, 16)
-        uc.reg_write(UC_ARM_REG_R1, 32)
-        uc.reg_write(UC_ARM_REG_R2, 0xffffffff)
-        uc.reg_write(UC_ARM_REG_R3, -16)
+        self.debug_addr(uc.reg_read(UC_ARM_REG_PC) - 20, 30)
+        if intno == 2:
+            swi = from_bytes(uc.mem_read(uc.reg_read(UC_ARM_REG_PC) - 2, 1))
+
+            print("SWI", swi, ":", uc.reg_read(UC_ARM_REG_R0), uc.reg_read(UC_ARM_REG_R1), uc.reg_read(UC_ARM_REG_R2), uc.reg_read(UC_ARM_REG_R3))
+
+            if swi == 0:
+                print("done?")
+                print(intno, swi, ":", uc.reg_read(UC_ARM_REG_R0), uc.reg_read(UC_ARM_REG_R1),
+                      uc.reg_read(UC_ARM_REG_R2), uc.reg_read(UC_ARM_REG_R3))
+                self.uc.reg_write(UC_ARM_REG_R0, 16)
+                self.uc.reg_write(UC_ARM_REG_R1, 32)
+                self.uc.reg_write(UC_ARM_REG_R2, 48)
+                self.uc.reg_write(UC_ARM_REG_R3, 64)
+            elif swi == 1:
+                self.api_response(b"hello, world!")
+                print("response")
+                self.uc.emu_stop()
+                self.uc.reg_write(UC_ARM_REG_R2, 48)
+                self.uc.reg_write(UC_ARM_REG_R3, 64)
+            else:
+                self.has_error = True
+                self.uc.emu_stop()
+                exit()
+
+    def api_response(self, buf):
+        self.uc.mem_write(MemoryMap.SYSCALL_BUFFER.address, buf)
+        self.uc.mem_write(MemoryMap.SYSCALL_BUFFER.address + len(buf), b"\0")
+        print(MemoryMap.SYSCALL_BUFFER.address)
+        self.uc.reg_write(UC_ARM_REG_R0, MemoryMap.SYSCALL_BUFFER.address)
+        self.uc.reg_write(UC_ARM_REG_R1, len(buf))
 
     def hook_peripheral_read(self, uc: Uc, access, address, size, value, data):
         if address == PeripheralAddress.UMPORT_CONTROLLER_RAM_SIZE:
