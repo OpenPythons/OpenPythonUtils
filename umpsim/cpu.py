@@ -30,14 +30,20 @@ class CPU:
         self.state.verify()
         self.init_memory()
         self.init_hook()
-        self.init_misc()
+        self.init_firmware()
 
-    def init_misc(self):
+    def init_dyn_stack(self):
+        "dynamic stack"
         sp = MemoryMap.STACK.address_until
-        addr = from_bytes(self.firmware[4:8])
-        self.uc.mem_write(MemoryMap.FLASH.address, self.firmware.buffer)
         self.uc.mem_write(MemoryMap.FLASH.address, to_bytes(sp))
-        self.uc.reg_write(UC_ARM_REG_PC, addr)
+
+    def init_firmware(self):
+        addr = MemoryMap.FLASH.address
+        self.uc.mem_write(addr, self.firmware.buffer)
+        self.uc.reg_write(UC_ARM_REG_PC, from_bytes(self.uc.mem_read(addr + 4, 4)))
+
+        if False:
+            self.init_dyn_stack()
 
     def run(self):
         self.last_addr = None
