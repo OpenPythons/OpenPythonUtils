@@ -1,13 +1,8 @@
 import faulthandler
-import pickle
 from pathlib import Path
 from subprocess import check_call, DEVNULL
 from threading import Thread
 
-from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB
-from unicorn.arm_const import *
-
-from umpsim.address import MemoryMap
 from umpsim.context import CpuContext
 from umpsim.cpu import CPU
 from umpsim.firmware import Firmware
@@ -59,6 +54,7 @@ def main():
             # fast context save/load (only register)
             ctx2 = cpu.uc.context_save()
             cpu.uc.context_restore(ctx2)
+
 
 if __name__ == '__main__':
     main()

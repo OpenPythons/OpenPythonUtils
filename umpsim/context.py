@@ -1,6 +1,5 @@
 import pickle
 
-from unicorn import Uc, UC_ARCH_ARM
 from unicorn.arm_const import *
 
 from umpsim.cpu import CPU
@@ -26,7 +25,7 @@ class CpuContext:
         return buffer
 
     @staticmethod
-    def load(buffer, cpu: CPU=None):
+    def load(buffer, cpu: CPU = None):
         if cpu is None:
             cpu = CPU()
 
