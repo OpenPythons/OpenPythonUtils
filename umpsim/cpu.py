@@ -113,12 +113,13 @@ class CPU:
                 self.hook_inst
             )
 
-    def hook_intr(self, uc:Uc, intno, user_data):
+    def hook_intr(self, uc: Uc, intno, user_data):
         self.debug_addr(uc.reg_read(UC_ARM_REG_PC) - 20, 30)
         if intno == 2:
             swi = from_bytes(uc.mem_read(uc.reg_read(UC_ARM_REG_PC) - 2, 1))
 
-            print("SWI", swi, ":", uc.reg_read(UC_ARM_REG_R0), uc.reg_read(UC_ARM_REG_R1), uc.reg_read(UC_ARM_REG_R2), uc.reg_read(UC_ARM_REG_R3))
+            print("SWI", swi, ":", uc.reg_read(UC_ARM_REG_R0), uc.reg_read(UC_ARM_REG_R1), uc.reg_read(UC_ARM_REG_R2),
+                  uc.reg_read(UC_ARM_REG_R3))
 
             if swi == 0:
                 print("done?")
@@ -197,7 +198,6 @@ class CPU:
 
         self.last_addr = address
 
-
     def report_memory(self):
         total_size = 0
         for mem_start, mem_end, perm in self.uc.mem_regions():
@@ -211,7 +211,8 @@ class CPU:
         INST_SIZE = 4
         try:
             for inst in self.cs.disasm(self.uc.mem_read(addr, INST_SIZE * count), addr, count):  # type: CsInsn
-                print(self.firmware.mapping[inst.address], hex(inst.address), hex(from_bytes(inst.bytes)), inst.mnemonic, inst.op_str)
+                print(self.firmware.mapping[inst.address], hex(inst.address), hex(from_bytes(inst.bytes)),
+                      inst.mnemonic, inst.op_str)
         except UcError as exc:
             if exc.errno == UC_ERR_READ_UNMAPPED:
                 print("fail to read memory", hex(addr))

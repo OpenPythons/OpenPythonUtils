@@ -1,14 +1,13 @@
 from enum import IntEnum, Enum
 from typing import NamedTuple
 
-from unicorn import UC_PROT_ALL, UC_PROT_READ, UC_PROT_WRITE, UC_PROT_EXEC
+from unicorn import UC_PROT_READ, UC_PROT_WRITE, UC_PROT_EXEC
 
 
 class MemoryRegion(NamedTuple):
     address: int
     size: int
     uc_mode: int
-
 
 
 class MemoryMap(Enum):

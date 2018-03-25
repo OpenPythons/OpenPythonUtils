@@ -5,7 +5,7 @@ from umpsim.util import MapLookupTable
 
 
 class Firmware:
-    def __init__(self, path: Path, map_path: Path=None):
+    def __init__(self, path: Path, map_path: Path = None):
         self.path = Path(path)
         self.map_path = Path(map_path)
         self.buffer: bytes = None
