@@ -52,10 +52,3 @@ class Firmware:
                     continue
 
         self.mapping = MapLookupTable(mapping)
-
-build_path = (Path(__file__).parent / "../umport/build")
-
-default_firmware = Firmware(
-    build_path / "firmware.bin",
-    build_path / "firmware.elf.map"
-)
