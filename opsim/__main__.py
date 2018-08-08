@@ -3,19 +3,20 @@ from pathlib import Path
 from subprocess import check_call, DEVNULL
 from threading import Thread
 
-from umpsim.context import CpuContext
-from umpsim.cpu import CPU
-from umpsim.firmware import Firmware
-from umpsim.state import CpuState
+from opsim.context import CpuContext
+from opsim.cpu import CPU
+from opsim.firmware import Firmware
+from opsim.state import CpuState
 
-umport_path = (Path(__file__).parent / "../umport")
-build_path = umport_path / "build"
+oprom_path = (Path(__file__).parent / "../oprom")
+build_path = oprom_path / "build"
+
 
 
 def main():
     check_call(
         ["wsl", "make"],
-        cwd=umport_path,
+        cwd=oprom_path,
         shell=True,
         stdin=DEVNULL
     )

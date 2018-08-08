@@ -2,7 +2,7 @@ import pickle
 
 from unicorn.arm_const import *
 
-from umpsim.cpu import CPU
+from opsim.cpu import CPU
 
 
 class CpuContext:

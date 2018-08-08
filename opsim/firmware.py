@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from umpsim.exc import UmpsimFirmwareMissingException
-from umpsim.util import MapLookupTable
+from opsim.exc import UmpsimFirmwareMissingException
+from opsim.util import MapLookupTable
 
 
 class Firmware:

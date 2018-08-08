@@ -7,7 +7,7 @@ from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_MEM_READ, UC_HOOK_ME
     UC_HOOK_MEM_READ_UNMAPPED, UC_ERR_READ_UNMAPPED, UC_HOOK_CODE, UC_HOOK_INTR
 from unicorn.arm_const import *
 
-from umpsim.debugger import HELPER_FUNCTIONS
+from opsim.debugger import HELPER_FUNCTIONS
 from .address import MemoryMap, MemoryRegion, PeripheralAddress
 from .firmware import Firmware
 from .state import CpuState
@@ -158,9 +158,9 @@ class CPU:
         self.uc.reg_write(UC_ARM_REG_R1, len(buf))
 
     def hook_peripheral_read(self, uc: Uc, access, address, size, value, data):
-        if address == PeripheralAddress.UMPORT_CONTROLLER_RAM_SIZE:
+        if address == PeripheralAddress.OPENPIE_CONTROLLER_RAM_SIZE:
             uc.mem_write(address, to_bytes(self.state.ram_size))
-        elif address == PeripheralAddress.UMPORT_CONTROLLER_STACK_SIZE:
+        elif address == PeripheralAddress.OPENPIE_CONTROLLER_STACK_SIZE:
             uc.mem_write(address, to_bytes(self.state.stack_size))
         elif address == PeripheralAddress.UART0_RXR:
             if self.state.stack:
@@ -176,15 +176,15 @@ class CPU:
                 print("read", access, hex(address), size, value, data)
 
     def hook_peripheral_write(self, uc: Uc, access, address, size, value, data):
-        if address == PeripheralAddress.UMPORT_CONTROLLER_PENDING:
+        if address == PeripheralAddress.OPENPIE_CONTROLLER_PENDING:
             if self.verbose >= 1:
-                print("UMPORT_CONTROLLER_PENDING", value)
-        elif address == PeripheralAddress.UMPORT_CONTROLLER_EXCEPTION:
+                print("OPENPIE_CONTROLLER_PENDING", value)
+        elif address == PeripheralAddress.OPENPIE_CONTROLLER_EXCEPTION:
             if self.verbose >= 1:
-                print("UMPORT_CONTROLLER_EXCEPTION", value)
-        elif address == PeripheralAddress.UMPORT_CONTROLLER_INTR_CHAR:
+                print("OPENPIE_CONTROLLER_EXCEPTION", value)
+        elif address == PeripheralAddress.OPENPIE_CONTROLLER_INTR_CHAR:
             if self.verbose >= 1:
-                print("UMPORT_CONTROLLER_INTR_CHAR", value)
+                print("OPENPIE_CONTROLLER_INTR_CHAR", value)
         elif address == PeripheralAddress.UART0_TXR:
             print(chr(value), end="")
             sys.stdout.flush()
