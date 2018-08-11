@@ -12,7 +12,6 @@ oprom_path = (Path(__file__).parent / "../oprom")
 build_path = oprom_path / "build"
 
 
-
 def main():
     check_call(
         ["wsl", "make"],
