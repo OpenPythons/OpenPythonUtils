@@ -33,11 +33,6 @@ class CPU:
         self.init_hook()
         self.init_firmware()
 
-    def init_dyn_stack(self):
-        "dynamic stack"
-        sp = MemoryMap.STACK.address_until
-        self.uc.mem_write(MemoryMap.FLASH.address, to_bytes(sp))
-
     def init_firmware(self):
         if not self.firmware:
             raise Exception("firmware missing error")
@@ -160,8 +155,6 @@ class CPU:
     def hook_peripheral_read(self, uc: Uc, access, address, size, value, data):
         if address == PeripheralAddress.OPENPIE_CONTROLLER_RAM_SIZE:
             uc.mem_write(address, to_bytes(self.state.ram_size))
-        elif address == PeripheralAddress.OPENPIE_CONTROLLER_STACK_SIZE:
-            uc.mem_write(address, to_bytes(self.state.stack_size))
         elif address == PeripheralAddress.UART0_RXR:
             if self.state.stack:
                 uc.mem_write(address, to_bytes(self.state.stack.pop(0)))
