@@ -101,3 +101,4 @@ ENV/
 
 # cmake-build-xxx
 cmake-build-*/
+/ThumbCsAlt/
