@@ -4,14 +4,15 @@ import time
 
 from capstone import Cs, CsInsn, CS_ARCH_ARM, CS_MODE_THUMB
 from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE, UcError, \
-    UC_HOOK_MEM_READ_UNMAPPED, UC_ERR_READ_UNMAPPED, UC_HOOK_CODE, UC_HOOK_INTR
+    UC_HOOK_MEM_READ_UNMAPPED, UC_ERR_READ_UNMAPPED, UC_HOOK_CODE, UC_HOOK_INTR, UC_HOOK_MEM_WRITE_UNMAPPED
 from unicorn.arm_const import *
 
 from opsim.debugger import HELPER_FUNCTIONS
+from opsim.regs import REGS, REGS_NAME
 from .address import MemoryMap, MemoryRegion, PeripheralAddress
 from .firmware import Firmware
 from .state import CpuState
-from .util import to_bytes, from_bytes
+from .util import to_bytes, from_bytes, hex32
 
 
 class CPU:
@@ -19,6 +20,7 @@ class CPU:
         self.firmware = firmware
         self.uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB)
         self.cs = Cs(CS_ARCH_ARM, CS_MODE_THUMB)
+        self.cs.detail = True
         self.state = state
         self.has_error = None
         self.last_addr = None
@@ -32,6 +34,7 @@ class CPU:
         self.init_memory()
         self.init_hook()
         self.init_firmware()
+        self.ready = True
 
     def init_firmware(self):
         if not self.firmware:
@@ -61,11 +64,15 @@ class CPU:
         except UcError as e:
             print("ERROR:", e)
             addr = self.uc.reg_read(UC_ARM_REG_PC)
-            # TODO: Thumb-2 code?
-            self.debug_addr(addr - INST_SIZE * 4, count=3)
+            self.debug_addr(addr - INST_SIZE * 8 - 2, count=7)
             print(">", end=" ")
             self.debug_addr(addr)
-            self.debug_addr(addr + INST_SIZE, count=3)
+            self.debug_addr(addr + INST_SIZE, count=7)
+            for reg in REGS:
+                uc_value = self.uc.reg_read(reg)
+                print(REGS_NAME[reg].ljust(5), hex32(uc_value), sep='\t')
+
+            raise
 
     def step(self):
         addr = self.uc.reg_read(UC_ARM_REG_PC)
@@ -100,7 +107,7 @@ class CPU:
         )
 
         self.uc.hook_add(
-            UC_HOOK_MEM_READ_UNMAPPED,
+            UC_HOOK_MEM_READ_UNMAPPED | UC_HOOK_MEM_WRITE_UNMAPPED,
             self.hook_unmapped
         )
 
@@ -220,6 +227,22 @@ class CPU:
                     print(self.firmware.mapping[inst.address], end=" ")
 
                 print(hex(inst.address), hex(from_bytes(inst.bytes)), inst.mnemonic, inst.op_str)
+        except UcError as exc:
+            if exc.errno == UC_ERR_READ_UNMAPPED:
+                print("fail to read memory", hex(addr))
+
+    def debug_addr_bin(self, addr, count=1):
+        INST_SIZE = 4
+        try:
+            for inst in self.cs.disasm(self.uc.mem_read(addr, INST_SIZE * count), addr, count):  # type: CsInsn
+                if self.firmware:
+                    print(self.firmware.mapping[inst.address], end=" ")
+
+                if len(inst.bytes) != 2:
+                    raise Exception(f"len(inst) != 2; {inst.bytes} => {inst.mnemonic} {inst.op_str}")
+
+                bcode = bin(from_bytes(inst.bytes))[2:].zfill(16)
+                print(hex(inst.address), bcode[0:4], bcode[4:8], bcode[8:12], bcode[12:16], inst.mnemonic, inst.op_str)
         except UcError as exc:
             if exc.errno == UC_ERR_READ_UNMAPPED:
                 print("fail to read memory", hex(addr))
