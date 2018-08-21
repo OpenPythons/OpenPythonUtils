@@ -43,6 +43,8 @@ def main():
     Thread(target=reader).start()
 
     faulthandler.enable()
+    cpu.run()
+
     while cpu.step():
         if False:
             # slow context save/load (memory, register, etc.)
