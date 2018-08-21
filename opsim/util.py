@@ -27,3 +27,8 @@ class MapLookupTable(Mapping):
 
     def __len__(self):
         return self.max
+
+
+def hex32(n):
+    n &= 0xFFFFFFFF
+    return "0x" + hex(n)[2:].zfill(8)
