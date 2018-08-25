@@ -101,4 +101,6 @@ ENV/
 
 # cmake-build-xxx
 cmake-build-*/
-/ThumbCsAlt/
+
+# ignore ThumbAlt
+/ThumbAlt/
