@@ -174,8 +174,6 @@ class CPU:
             else:
                 uc.mem_write(address, to_bytes(0))
         elif address == PeripheralAddress.RTC_TICKS_MS:
-        elif address == PeripheralAddress.RTC_TICKS_US:
-            uc.mem_write(address, to_bytes(int((time.time() - self.state.epoch) * 1000 * 1000)))
             pass
             # uc.mem_write(address, to_bytes(int((time.time() - self.state.epoch) * 1000)))
         else:
