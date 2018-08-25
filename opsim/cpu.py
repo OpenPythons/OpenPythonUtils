@@ -25,6 +25,7 @@ class CPU:
         self.has_error = None
         self.last_addr = None
         self.ready = False
+        self.context = None
         self.verbose = verbose
 
     def init(self):
@@ -34,6 +35,8 @@ class CPU:
         self.init_memory()
         self.init_hook()
         self.init_firmware()
+        self.context = self.uc.context_save()
+        self.reset()
         self.ready = True
 
     def init_firmware(self):
@@ -42,10 +45,11 @@ class CPU:
 
         addr = MemoryMap.FLASH.address
         self.uc.mem_write(addr, self.firmware.buffer)
-        self.uc.reg_write(UC_ARM_REG_PC, from_bytes(self.uc.mem_read(addr + 4, 4)))
 
-        if False:
-            self.init_dyn_stack()
+    def reset(self):
+        addr = MemoryMap.FLASH.address
+        self.uc.context_restore(self.context)
+        self.uc.reg_write(UC_ARM_REG_PC, from_bytes(self.uc.mem_read(addr + 4, 4)))
 
     def run(self):
         if not self.ready:
@@ -142,7 +146,8 @@ class CPU:
             elif swi == 1:
                 # TODO: address and size vaild required?
                 buffer = uc.mem_read(r0, r1).decode('utf-8', 'replace')
-                print(buffer)
+                if self.state.write_to_stdout:
+                    print("API_REQ", buffer)
                 self.api_response("hello")
                 self.uc.emu_stop()
             else:
@@ -153,7 +158,8 @@ class CPU:
     def api_response(self, *args):
         bufs = json.dumps(args)
         buf = bufs.encode("utf-8")
-        print(buf)
+        if self.state.write_to_stdout:
+            print("API_RES", buf)
         self.uc.mem_write(MemoryMap.SYSCALL_BUFFER.address, buf)
         self.uc.mem_write(MemoryMap.SYSCALL_BUFFER.address + len(buf), b'\0')
         self.uc.reg_write(UC_ARM_REG_R0, MemoryMap.SYSCALL_BUFFER.address)
@@ -163,14 +169,15 @@ class CPU:
         if address == PeripheralAddress.OPENPIE_CONTROLLER_RAM_SIZE:
             uc.mem_write(address, to_bytes(self.state.ram_size))
         elif address == PeripheralAddress.UART0_RXR:
-            if self.state.stack:
-                uc.mem_write(address, to_bytes(self.state.stack.pop(0)))
+            if self.state.input_buffer:
+                uc.mem_write(address, to_bytes(self.state.input_buffer.pop(0)))
             else:
                 uc.mem_write(address, to_bytes(0))
         elif address == PeripheralAddress.RTC_TICKS_MS:
-            uc.mem_write(address, to_bytes(int((time.time() - self.state.epoch) * 1000)))
         elif address == PeripheralAddress.RTC_TICKS_US:
             uc.mem_write(address, to_bytes(int((time.time() - self.state.epoch) * 1000 * 1000)))
+            pass
+            # uc.mem_write(address, to_bytes(int((time.time() - self.state.epoch) * 1000)))
         else:
             if self.verbose >= 1:
                 print("read", access, hex(address), size, value, data)
@@ -186,7 +193,9 @@ class CPU:
             if self.verbose >= 1:
                 print("OPENPIE_CONTROLLER_INTR_CHAR", value)
         elif address == PeripheralAddress.UART0_TXR:
-            print(chr(value), end="")
+            self.state.output_storage.append(value)
+            if self.state.write_to_stdout:
+                print(chr(value), end="")
             sys.stdout.flush()
         else:
             if self.verbose >= 1:

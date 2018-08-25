@@ -32,3 +32,16 @@ class MapLookupTable(Mapping):
 def hex32(n):
     n &= 0xFFFFFFFF
     return "0x" + hex(n)[2:].zfill(8)
+
+
+def get_CPSR(cpsr):
+    FV = 1 << 28
+    FC = 1 << 29
+    FZ = 1 << 30
+    FN = 1 << 31
+
+    r = ""
+    for f, s in zip((FN, FZ, FC, FV), "NZCV"):
+        r += s if f & cpsr else " "
+
+    return r
