@@ -166,14 +166,14 @@ class CPU:
         self.uc.reg_write(UC_ARM_REG_R1, len(buf))
 
     def hook_peripheral_read(self, uc: Uc, access, address, size, value, data):
-        if address == PeripheralAddress.OPENPIE_CONTROLLER_RAM_SIZE:
+        if address == PeripheralAddress.OP_CON_RAM_SIZE:
             uc.mem_write(address, to_bytes(self.state.ram_size))
-        elif address == PeripheralAddress.UART0_RXR:
+        elif address == PeripheralAddress.OP_IO_RXR:
             if self.state.input_buffer:
                 uc.mem_write(address, to_bytes(self.state.input_buffer.pop(0)))
             else:
                 uc.mem_write(address, to_bytes(0))
-        elif address == PeripheralAddress.RTC_TICKS_MS:
+        elif address == PeripheralAddress.OP_RTC_TICKS_MS:
             pass
             # uc.mem_write(address, to_bytes(int((time.time() - self.state.epoch) * 1000)))
         else:
@@ -181,16 +181,16 @@ class CPU:
                 print("read", access, hex(address), size, value, data)
 
     def hook_peripheral_write(self, uc: Uc, access, address, size, value, data):
-        if address == PeripheralAddress.OPENPIE_CONTROLLER_PENDING:
+        if address == PeripheralAddress.OP_CON_PENDING:
             if self.verbose >= 1:
                 print("OPENPIE_CONTROLLER_PENDING", value)
-        elif address == PeripheralAddress.OPENPIE_CONTROLLER_EXCEPTION:
+        elif address == PeripheralAddress.OP_CON_EXCEPTION:
             if self.verbose >= 1:
                 print("OPENPIE_CONTROLLER_EXCEPTION", value)
-        elif address == PeripheralAddress.OPENPIE_CONTROLLER_INTR_CHAR:
+        elif address == PeripheralAddress.OP_CON_INTR_CHAR:
             if self.verbose >= 1:
                 print("OPENPIE_CONTROLLER_INTR_CHAR", value)
-        elif address == PeripheralAddress.UART0_TXR:
+        elif address == PeripheralAddress.OP_IO_TXR:
             self.state.output_storage.append(value)
             if self.state.write_to_stdout:
                 print(chr(value), end="")

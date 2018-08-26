@@ -18,10 +18,10 @@ import jnius_config
 
 jnius_config.expand_classpath()
 jnius_config.add_classpath(r"C:\Users\EcmaXp\Dropbox\Projects\ThumbSJ\out\production\ThumbSJ")
-# jnius_config.options.append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
 jnius_config.options += [
-    "-XX:+UnlockDiagnosticVMOptions",
-    "-XX:+PrintCompilation",
+    "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
+    # "-XX:+UnlockDiagnosticVMOptions",
+    # "-XX:+PrintCompilation",
     # "-XX:+PrintInlining",
 ]
 
@@ -30,7 +30,7 @@ import java
 
 with java:
     # noinspection PyUnresolvedReferences
-    from kr.pe.ecmaxp.thumbsj import CPU
+    from kr.pe.ecmaxp.thumbsj import CPU, MemoryFlag, Handler
 
 os.chdir(cwd)
 
@@ -38,6 +38,9 @@ os.chdir(cwd)
 class Regs:
     def __init__(self, regs):
         self.regs = regs
+
+    def Load(self):
+        return self.regs.load()
 
     def Set(self, reg, value):
         self.regs.set(reg, value)
@@ -65,9 +68,10 @@ class ThumbSJ:
 def ready_sim_java(cpu, sim):
     PC = 15
     sim.Regs.Set(PC, cpu.uc.reg_read(UC_ARM_REG_PC))
+    flags = [MemoryFlag.RX, MemoryFlag.RW, Handler(), MemoryFlag.RW, MemoryFlag.RW]
     for (begin, end, perms) in cpu.uc.mem_regions():
-        if (end - begin) > 0x10000:
-            sim.Memory.map(begin, end - begin, False)
+        print(hex(begin), hex(end - begin + 1))
+        sim.Memory.map(begin, end - begin + 1, flags.pop(0))
     sim.Memory.writeBuffer(MemoryMap.FLASH.address, firmware.buffer)
 
 

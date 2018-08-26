@@ -62,12 +62,12 @@ def main():
         assert size == 4
         if prev_hook_addr <= address < next_hook_addr:
             if is_read:
-                if address == PeripheralAddress.OPENPIE_CONTROLLER_RAM_SIZE:
+                if address == PeripheralAddress.OP_CON_RAM_SIZE:
                     return int_from_bytes(cpu.uc.mem_read(address, size))
-                elif address == PeripheralAddress.UART0_RXR:
+                elif address == PeripheralAddress.OP_IO_RXR:
                     if custom_stack:
                         return custom_stack.pop(0)
-                elif address == PeripheralAddress.RTC_TICKS_MS:
+                elif address == PeripheralAddress.OP_RTC_TICKS_MS:
                     if not FLAG:
                         return int_from_bytes(cpu.uc.mem_read(address, size))
                     else:
@@ -75,13 +75,13 @@ def main():
                 else:
                     print("read", hex(address))
             else:
-                if address == PeripheralAddress.OPENPIE_CONTROLLER_PENDING:
+                if address == PeripheralAddress.OP_CON_PENDING:
                     pass
-                elif address == PeripheralAddress.OPENPIE_CONTROLLER_EXCEPTION:
+                elif address == PeripheralAddress.OP_CON_EXCEPTION:
                     pass
-                elif address == PeripheralAddress.OPENPIE_CONTROLLER_INTR_CHAR:
+                elif address == PeripheralAddress.OP_CON_INTR_CHAR:
                     pass
-                elif address == PeripheralAddress.UART0_TXR:
+                elif address == PeripheralAddress.OP_IO_TXR:
                     if FLAG:
                         print(chr(value), end="")
                     sys.stdout.flush()

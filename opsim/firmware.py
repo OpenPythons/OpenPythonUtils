@@ -13,7 +13,6 @@ class Firmware:
         self.buffer: bytes = None
         self.last_mtime: float = None
         self.mapping = None
-        self.refresh()
 
     def __getitem__(self, item):
         assert self.buffer != None
@@ -37,10 +36,8 @@ class Firmware:
             self.last_mtime = mtime
             self.refresh_map()
 
-    def load_bytes(self, *, refresh=True):
-        if refresh:
-            self.refresh()
-
+    def load_bytes(self):
+        self.refresh()
         return self.buffer
 
     def refresh_map(self):

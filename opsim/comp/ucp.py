@@ -9,6 +9,8 @@ from opsim.state import CpuState
 def main():
     faulthandler.enable()
 
+    firmware.build()
+
     state = CpuState()
     cpu = CPU(firmware, state, verbose=1)
     cpu.init()
@@ -21,7 +23,7 @@ def main():
                 cpu.has_error = True
                 break
 
-            cpu.state.stack += (line + "\r\n").encode()
+            cpu.state.input_buffer += (line + "\r\n").encode()
 
     Thread(target=reader).start()
 

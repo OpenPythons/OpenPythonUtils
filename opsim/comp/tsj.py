@@ -1,5 +1,4 @@
 import faulthandler
-from array import array
 
 from unicorn.arm_const import *
 
@@ -25,8 +24,8 @@ def main():
         buf = (line + "\r\n").encode()
         cpu.state.input_buffer += buf
 
-    push("import pystone")
-    push("pystone.main(1)")
+    # push("import pystone")
+    # push("pystone.main(1)")
 
     FLAG = False
     if FLAG:
@@ -39,9 +38,7 @@ def main():
         prev_pc = cpu.uc.reg_read(UC_ARM_REG_PC)
         cpu.step()
 
-        if not sim.Run(cycle):
-            # exception raised
-            break
+        sim.Run(cycle)
 
         if count % 10000 == 0:
             print(count)
