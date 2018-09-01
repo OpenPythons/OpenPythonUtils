@@ -20,7 +20,7 @@ class Firmware:
 
     def build(self):
         check_call(
-            ["wsl", "make"],
+            ["wsl", "make", "-j8"],
             cwd=str(self.rom_folder),
             shell=True,
             stdin=DEVNULL
