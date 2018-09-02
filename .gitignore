@@ -104,3 +104,4 @@ cmake-build-*/
 
 # ignore ThumbAlt
 /ThumbAlt/
+/CMakeLists.txt
