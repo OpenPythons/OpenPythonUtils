@@ -16,7 +16,7 @@ from .util import to_bytes, from_bytes, hex32
 
 
 class CPU:
-    def __init__(self, firmware: Firmware = None, state: CpuState = None, verbose=0):
+    def __init__(self, firmware: Firmware = None, state: CpuState = None, verbose=0, init=True):
         self.firmware = firmware
         self.uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB)
         self.cs = Cs(CS_ARCH_ARM, CS_MODE_THUMB)
@@ -27,6 +27,9 @@ class CPU:
         self.ready = False
         self.context = None
         self.verbose = verbose
+
+        if init:
+            self.init()
 
     def init(self):
         if self.firmware:
@@ -58,7 +61,7 @@ class CPU:
         INST_SIZE = 2
 
         if self.firmware:
-            self.last_func = self.firmware.mapping[self.uc.reg_read(UC_ARM_REG_PC)]
+            self.last_func = self.firmware.text_map[self.uc.reg_read(UC_ARM_REG_PC)]
             if self.verbose >= 2:
                 print(self.last_func)
 
@@ -78,9 +81,17 @@ class CPU:
 
             raise
 
-    def step(self):
+    def step(self, count=None):
         addr = self.uc.reg_read(UC_ARM_REG_PC)
-        self.uc.emu_start(addr | 1, MemoryMap.FLASH.address_until, 0, self.state.cycle)
+        cycle = self.state.cycle
+        if count is not None:
+            self.state.cycle = count
+
+        try:
+            self.uc.emu_start(addr | 1, MemoryMap.FLASH.address_until, 0, self.state.cycle)
+        finally:
+            if count is not None:
+                self.state.cycle = cycle
 
         if self.has_error:
             raise UcError(0)
@@ -207,7 +218,7 @@ class CPU:
     def hook_inst(self, uc: Uc, address, size, data):
         func = None
         if self.firmware:
-            func = self.firmware.mapping[address]
+            func = self.firmware.text_map[address]
             if func in HELPER_FUNCTIONS:
                 return
 
@@ -226,14 +237,14 @@ class CPU:
 
     INST_SIZE = 2
 
-    def debug_addr(self, addr, count=1):
+    def debug_addr(self, addr, count=1, *, end="\n"):
         INST_SIZE = 4
         try:
             for inst in self.cs.disasm(self.uc.mem_read(addr, INST_SIZE * count), addr, count):  # type: CsInsn
                 if self.firmware:
-                    print(self.firmware.mapping[inst.address], end=" ")
+                    print(self.firmware.text_map[inst.address], end=" ")
 
-                print(hex(inst.address), hex(from_bytes(inst.bytes)), inst.mnemonic, inst.op_str)
+                print(hex(inst.address), hex(from_bytes(inst.bytes)), inst.mnemonic, inst.op_str, end=end)
         except UcError as exc:
             if exc.errno == UC_ERR_READ_UNMAPPED:
                 print("fail to read memory", hex(addr))
@@ -243,7 +254,7 @@ class CPU:
         try:
             for inst in self.cs.disasm(self.uc.mem_read(addr, INST_SIZE * count), addr, count):  # type: CsInsn
                 if self.firmware:
-                    print(self.firmware.mapping[inst.address], end=" ")
+                    print(self.firmware.text_map[inst.address], end=" ")
 
                 if len(inst.bytes) != 2:
                     raise Exception(f"len(inst) != 2; {inst.bytes} => {inst.mnemonic} {inst.op_str}")

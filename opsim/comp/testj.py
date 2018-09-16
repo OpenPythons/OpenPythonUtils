@@ -77,7 +77,7 @@ def run_test(cpu, state, code, fast_cycle):
         if not has_exception:
             # exception raised
             if sim.IsDone():
-                # Interrupted for test done
+                # Interrupted for progs done
                 return True, has_mismatch, buffer, buffer2
 
             break
@@ -148,7 +148,7 @@ def main():
 
     state = CpuState()
     cpu = CPU(firmware, state)
-    cpu.init()
+
 
     EMPTY = object()
     for test, rel_test in tests:

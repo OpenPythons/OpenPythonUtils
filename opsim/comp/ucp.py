@@ -4,16 +4,16 @@ from threading import Thread
 from opsim.cpu import CPU
 from opsim.firmware import firmware
 from opsim.state import CpuState
+from unicorn.arm_const import *
 
 
 def main():
     faulthandler.enable()
 
-    firmware.build()
+    # firmware.build()
 
     state = CpuState()
     cpu = CPU(firmware, state, verbose=1)
-    cpu.init()
 
     def reader():
         while True:
@@ -25,9 +25,20 @@ def main():
 
             cpu.state.input_buffer += (line + "\r\n").encode()
 
-    Thread(target=reader).start()
+    Thread(target=reader, daemon=True).start()
 
-    cpu.run()
+    pc = cpu.uc.reg_read(UC_ARM_REG_PC)
+    ph = lambda x: print(hex(x))
+    phr = lambda r: ph(cpu.uc.reg_read(r))
+
+    cpu.step(7)
+    phr(UC_ARM_REG_R0)
+    phr(UC_ARM_REG_R1)
+    phr(UC_ARM_REG_R3)
+    phr(UC_ARM_REG_R4)
+
+    # cpu.run()
+
 
 if __name__ == '__main__':
     main()

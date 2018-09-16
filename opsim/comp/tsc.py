@@ -3,17 +3,13 @@ import sys
 import time
 from threading import Thread
 
-from capstone import CsInsn
-from capstone.arm import ArmOp
 from unicorn.arm_const import *
 
 from opsim.address import MemoryMap, PeripheralAddress
 from opsim.cpu import CPU
 from opsim.firmware import firmware
 from opsim.ports.cs import ThumbSC, HookMemory
-from opsim.regs import REGS_NAME, REGS
 from opsim.state import CpuState
-from opsim.util import from_bytes, hex32, get_CPSR
 from opsim.valid import check_failures, print_failures
 
 
@@ -24,7 +20,7 @@ def main():
     sim = ThumbSC()
     state = CpuState()
     cpu = CPU(firmware, state, verbose=1)
-    cpu.init()
+
 
     sim.Regs.PC = cpu.uc.reg_read(UC_ARM_REG_PC)
     for (begin, end, perms) in cpu.uc.mem_regions():

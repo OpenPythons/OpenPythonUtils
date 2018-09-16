@@ -15,7 +15,7 @@ def main():
     sim = ThumbSJ()
     state = CpuState()
     cpu = CPU(firmware, state, verbose=1)
-    cpu.init()
+
 
     ready_sim_java(cpu, sim)
 

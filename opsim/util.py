@@ -1,5 +1,11 @@
 from bisect import bisect_right
 from collections import Mapping
+from typing import Dict, Optional, Tuple
+import typing
+
+
+if typing.TYPE_CHECKING:
+    from opsim.firmware import Function
 
 
 def from_bytes(b):
@@ -11,22 +17,36 @@ def to_bytes(n):
 
 
 class MapLookupTable(Mapping):
-    def __init__(self, table):
-        self.table = [k for k, _ in sorted(table)]
-        self.table2 = [v for _, v in sorted(table)]
-        self.max = self.table[-1]
+    def __init__(self, table: "Dict[int, Function]"):
+        seq = sorted(table.items())
+        _, first = seq[0]
+        _, last = seq[-1]
+        self.seq = seq
+        self.vmap = [v for k, v in seq]
+        self.kmap = [k for k, v in seq]
+        self.min = first.address
+        self.max = last.address + last.size
 
-    def __getitem__(self, key):
-        key = int(key)
-        if not 0 <= key <= self.max:
+    def _get(self, address: int) -> "Function":
+        index = bisect_right(self.kmap, address) - 1
+        return self.vmap[index]
+
+    def get_range(self, address: int) -> Tuple[int, int]:
+        function = self._get(address)
+        return function.address, function.address + function.size
+
+    def __getitem__(self, address: int) -> "Optional[Function]":
+        if not self.min <= address < self.max:
             return None
-        return self.table2[bisect_right(self.table, key) - 1]
+
+        function = self._get(address)
+        return function
 
     def __iter__(self):
-        return iter(range(0, self.max + 1))
+        return iter(self.kmap)
 
     def __len__(self):
-        return self.max
+        return len(self.kmap)
 
 
 def hex32(n):
