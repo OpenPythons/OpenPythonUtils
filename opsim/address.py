@@ -18,6 +18,8 @@ class MemoryMap(Enum):
     RAM = MemoryRegion(0x60000000, 192 * KB, UC_PROT_READ | UC_PROT_WRITE)
     SYSCALL_BUFFER = MemoryRegion(0xE0000000, 16 * KB, UC_PROT_READ | UC_PROT_WRITE)
 
+    def __contains__(self, addr):
+        return self.address <= addr < self.address_until
 
     @property
     def address(self) -> int:
