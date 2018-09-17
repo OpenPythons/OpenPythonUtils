@@ -1,29 +1,11 @@
-from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from pprint import pprint
 from subprocess import check_call, DEVNULL
-from typing import Dict, Optional, Set
-
-from dataclasses import dataclass, field
+from typing import Dict
 
 from opsim.exc import UmpsimFirmwareMissingException
+from opsim.types import Function
 from opsim.util import MapLookupTable
-
-
-@dataclass
-class Function:
-    address: int
-    size: Optional[int]
-    name: str
-    path: str
-
-    has_indirect: bool = False
-    joint_set: Set[int] = field(default_factory=set, repr=False)
-    stop_set: Set[int] = field(default_factory=set, repr=False)
-
-    def __contains__(self, item):
-        return self.address <= item < self.address + self.size
 
 
 class Firmware:
@@ -35,6 +17,10 @@ class Firmware:
         self.last_mtime: float = None
         self.text_map: MapLookupTable = None
         self.rodata_map: MapLookupTable = None
+        self.data_map: MapLookupTable = None
+        self.bss_map: MapLookupTable = None
+        self.common_map: MapLookupTable = None
+        self.symbol_map: MapLookupTable = None
 
     def __getitem__(self, item):
         assert self.buffer != None
