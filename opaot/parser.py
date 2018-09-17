@@ -71,7 +71,7 @@ def parse(addr, code, next_code=None):
             elif prefix == 8:
                 return Insn2(Op.TSTS, Rd, Rs)  # TST Rd, Rs set condition codes on Rd AND Rs
             elif prefix == 9:
-                return Insn3(Op.RSBS, Rd, Rs, Imm(0))  # NEG Rd, Rs Rd = Reg(-Rs)
+                return Insn2(Op.RSBS, Rd, Rs)  # NEG Rd, Rs Rd = Reg(-Rs)
             elif prefix == 10:
                 return Insn2(Op.CMP, Rd, Rs)  # CMP Rd, Rs set condition codes on Rd - Rs
             elif prefix == 11:
