@@ -5,17 +5,20 @@ import sys
 from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
 from pprint import pprint
+from typing import Optional
 
 from opaot.errors import UnknownInstructionException, UnsupportedInstructionException
 from opaot.parser import parse
 from opaot.types import *
 from opsim.address import MemoryMap
 from opsim.cpu import CPU
-from opsim.firmware import firmware, Function
+from opsim.firmware import firmware
+from opsim.types import Function
 from opsim.state import CpuState
 from opsim.util import from_bytes
+
+firmware.build()
 
 cpu = CPU(firmware, CpuState(), verbose=1)
 flash = MemoryMap.FLASH
@@ -25,6 +28,15 @@ text_map = firmware.text_map
 symbol_map = firmware.symbol_map
 
 THUMB_MASK = 0b11111111_11111111_11111111_11111110
+
+MP_FROZEN_MPY_CONSTS = {
+    "mp_frozen_str_content",
+    "mp_frozen_str_names",
+    "mp_frozen_str_sizes",
+    "mp_frozen_mpy_content",
+    "mp_frozen_mpy_names",
+    "mp_qstr_frozen_const_pool",
+}
 
 
 def no_return_func(func: Function):
@@ -133,6 +145,9 @@ def walk(func: Function, pc, *, indent=1, visited=None, do_write):
                             mfunc.has_indirect = True  # referenced
 
             next_pc = pc + 2
+        elif isinstance(insn, InsnSVC):
+            next_pc = pc + 2
+            func.joint_set.add(next_pc - func.address)  # dup
         else:
             next_pc = pc + 2
 
@@ -166,21 +181,17 @@ def conv(name: str):
 def build_link(func: Function):
     print("    // function:", func)
     print(f"    abstract protected void {func.name}(int offset) throws Exception;")
+    print(f"    public static final int {conv(func.name)} = 0x{hex(func.address)[2:].zfill(8)};")
+    print(f"    public void {func.name}(InterruptHandler handler) throws Exception")
+    print("    {")
+    print(f"        call(this::{func.name}, handler);")
+    print("    }")
     print()
 
 
 def build_val(func: Function):
     print("    // function:", func)
     print(f"    public static final int {conv(func.name)} = 0x{hex(func.address)[2:].zfill(8)};")
-    print()
-
-
-def build_prototype(func: Function):
-    print("    // function:", func)
-    print(f"    public void {func.name}() throws Exception")
-    print("    {")
-    print(f"        call(this::{func.name});")
-    print("    }")
     print()
 
 
@@ -231,20 +242,26 @@ def build_body(func: Function):
 
             target: Optional[int] = None
             branch_args = ""
+            branch_link_arg = ""
+
+            if insn.op == Op.BL or insn.op == Op.BLX or isinstance(insn, InsnSVC):
+                cb_offset = pc_offset + (2 if insn.op != Op.BL else 4)
+                branch_link_arg = f"{conv(func.name)} + {cb_offset} | 1, {cb_offset}"
+
             if isinstance(insn, (InsnBranch, InsnLongBranch, InsnBranchIf, InsnBranchIf2, InsnBranch2)):
                 if isinstance(insn.dest, Offset):
                     target = insn.dest.target
                     new_func = text_map[target]
                     new_func_name = f"this::{new_func.name}" if new_func != func else "null"
-                    if func == new_func or (target - new_func.address) != 0:
+                    if isinstance(insn, InsnBranchIf) and func == new_func:
+                        branch_args = f"{target - new_func.address}"
+                    elif func == new_func or (target - new_func.address) != 0:
                         branch_args = f"{new_func_name}, {target - new_func.address}"
                     else:
                         branch_args = f"{new_func_name}"
 
                     if insn.op == Op.BL or insn.op == Op.BLX:
-                        cb_offset = pc_offset + (2 if insn.op == Op.BLX else 4)
-                        branch_args += f", {cb_offset}"
-                        write(f"lr = {conv(func.name)} + {cb_offset} | 1")
+                        branch_args += ", " + branch_link_arg
 
             if isinstance(insn, Insn2):
                 if insn.op == Op.MOV and isinstance(insn.src, Reg):
@@ -258,7 +275,8 @@ def build_body(func: Function):
                     write(f"{insn.op}({insn.dest!r}, {insn.src!r})")
                 elif insn.op == Op.SXTH or insn.op == Op.SXTB or \
                         insn.op == Op.UXTH or insn.op == Op.UXTB or \
-                        insn.op == Op.REV:
+                        insn.op == Op.REV or \
+                        insn.op == Op.RSBS:
                     write(f"{insn.dest!r} = {insn.op}({insn.src!r})")
                 else:
                     write(f"{insn.dest!r} = {insn.op}({insn.dest!r}, {insn.src!r})")
@@ -277,6 +295,8 @@ def build_body(func: Function):
                         maddr = f"{insn.base!r} + {insn.offset!r}"
 
                     if insn.base == Reg.pc:
+                        moffset10 = insn.offset.value + 4  # make ~10
+                        assert moffset10 > 0
                         maddr = (pc + insn.offset.value + 4) & 0b11111111_11111111_11111111_11111101
                         mvalue = read_int(maddr)
                         hvalue = f"0x{hex(mvalue)[2:].zfill(8)}"
@@ -284,21 +304,18 @@ def build_body(func: Function):
 
                         if mfunc is not None:
                             if (mvalue & THUMB_MASK) == mfunc.address:
-                                write(f"{insn.dest} = {conv(mfunc.name)} | 1")
+                                write(f"{insn.dest} = mov({conv(mfunc.name)} | 1)")
                                 write(f"hint({conv(mfunc.name)} | 1, this::{mfunc.name})")
                             else:
-                                assert False, insn
-                                # noinspection PyUnreachableCode
-                                if mfunc != func:
-                                    write(f"{insn.dest} = {conv(mfunc.name)} + {mvalue - mfunc.address} // (bug)")
-                                elif mfunc == func:
-                                    write(f"{insn.dest} = {hvalue}; // {mfunc.name} + {mvalue - mfunc.address}")
+                                raise Exception("invalid memory read (?)")
                         else:
+                            assert insn.op == Op.LDR
                             vfunc = symbol_map[mvalue]
                             if vfunc is not None and mvalue == vfunc.address:
-                                write(f"{insn.dest} = {conv(vfunc.name)}")
+                                write(f"{insn.dest} = {insn.op}({func.name} + {maddr - func.address}); // {conv(vfunc.name)}")
                             else:
-                                write(f"{insn.dest} = {hvalue}")
+                                write(f"{insn.dest} = {insn.op}({func.name} + {maddr - func.address})")
+                                # write(f"{insn.dest} = mov({hvalue})")
                     else:
                         write(f"{insn.dest} = {insn.op}({maddr})")
                 elif insn.op.name.startswith("STR"):
@@ -329,7 +346,7 @@ def build_body(func: Function):
                         write("return")
                     break
             elif isinstance(insn, InsnMemStack):
-                regs_s = ', '.join(map(repr, insn.regs)).upper()
+                regs_s = ', '.join(map(repr, insn.regs))
                 assert regs_s
                 if insn.op == Op.LDMIA:
                     regs_s = regs_s.upper()
@@ -340,7 +357,7 @@ def build_body(func: Function):
                     write(f"{insn.op}({branch_args})")
                 else:
                     if insn.op == Op.BLX:
-                        write(f"{insn.op}({insn.dest!r}, {next_pc - func.address})")
+                        write(f"{insn.op}({insn.dest!r}, {branch_link_arg})")
                     else:
                         write(f"{insn.op}({insn.dest!r})")
 
@@ -358,7 +375,7 @@ def build_body(func: Function):
                 else:
                     write(f"if ({insn.op}({insn.src!r}, {insn.dest!r})) return")
             elif isinstance(insn, InsnSVC):
-                write(f"{insn.op}({insn.soffset!r})")
+                write(f"{insn.op}({insn.soffset!r}, {cb_offset})")
             else:
                 raise Exception(repr(insn))
 
@@ -401,46 +418,35 @@ def captrue_stdout(captrue=True, *, mirror=False):
 
 
 def main():
-    global is_ignored, text_map, symbol_map
+    for mapping in text_map, symbol_map:
+        for func in mapping.values():
+            func.name = func.name.replace(".", "_")
 
-    text_map_path = Path("text_map.pickle")
-    symbol_map_path = Path("symbol_map.pickle")
+        funcs = {}
+        counter = Counter()
+        for func in mapping.values():
+            counter[func.name] += 1
+            if func.name not in funcs:
+                funcs[func.name] = func
+            else:
+                cnt = counter[func.name]
+                if cnt == 1:
+                    funcs[func.name].name += "__0"
 
-    # noinspection PyUnreachableCode
-    if True:
-        for mapping in text_map, symbol_map:
-            for func in mapping.values():
-                func.name = func.name.replace(".", "_")
+                func.name += f"__{cnt}"
 
-            funcs = {}
-            counter = Counter()
-            for func in mapping.values():
-                counter[func.name] += 1
-                if func.name not in funcs:
-                    funcs[func.name] = func
-                else:
-                    cnt = counter[func.name]
-                    if cnt == 1:
-                        funcs[func.name].name += "__0"
-
-                    func.name += f"__{cnt}"
-
-        do_write = False
-        with captrue_stdout() as stdout:
-            for addr, func in sorted(text_map.items()):
+    do_write = False
+    with captrue_stdout() as stdout:
+        for addr, func in sorted(text_map.items()):
+            if do_write:
                 print(func)
-                walk(func, addr, do_write=do_write)
+            walk(func, addr, do_write=do_write)
+            if do_write:
                 print()
 
-            if do_write:
-                Path("fw_aot.txt").write_text(stdout.getvalue())
-            # exit()
-
-        text_map_path.write_bytes(pickle.dumps(text_map))
-        symbol_map_path.write_bytes(pickle.dumps(symbol_map))
-    else:
-        text_map = pickle.loads(text_map_path.read_bytes())
-        symbol_map = pickle.loads(symbol_map_path.read_bytes())
+        if do_write:
+            Path("fw_aot.txt").write_text(stdout.getvalue())
+        # exit()
 
     for addr, func in text_map.items():
         assert addr in flash
@@ -511,24 +517,22 @@ def main():
                 header = """
 package %package%;
 
-import kr.pe.ecmaxp.thumbsk.CPU;
+import kr.pe.ecmaxp.thumbjk.Callback;
 import kr.pe.ecmaxp.thumbjk.KotlinCPU;
+import kr.pe.ecmaxp.thumbjk.InterruptHandler;
+import kr.pe.ecmaxp.thumbsk.Memory;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
+
 import static kr.pe.ecmaxp.thumbsk.helper.RegisterIndex.*;
-import static %package%.MicroPython_vals.*;
 """.strip()
             else:
                 header = """
 package %package%;
 
-import kr.pe.ecmaxp.thumbjk.Callback;
-import kr.pe.ecmaxp.thumbsk.CPU;
+import kr.pe.ecmaxp.thumbsk.Memory;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.HashMap;
-
-import static %package%.MicroPython_vals.*;
 """.strip()
         else:
             header = """
@@ -544,15 +548,15 @@ package %package%;
             extends="extends " if parent else "",
             header=header.replace("%package%", package),
             init=("""
-    public %name%(@NotNull CPU cpu)
+    public %name%(@NotNull Memory memory)
     {
-        super(cpu);
+        super(memory);
     }
             """.strip() if parent else """
     private %name%()
     {
     }       
-    """).replace("%name%", clsname)
+    """).strip().replace("%name%", clsname)
         )
 
     folder = Path(r"C:\Users\EcmaXp\Dropbox\Projects\OpenPie\opmod\src\main\java\kr\pe\ecmaxp\micropython\example")
@@ -568,20 +572,49 @@ package %package%;
         print("update", path.name)
         path.write_text(clsbuf)
 
+
     with captrue_stdout() as bfp:
+        print(end="    ")
+        print("""
+    @Override
+    @NotNull
+    protected HashMap<Integer, Callback> gen_hints() {
+        HashMap<Integer, Callback> map = new HashMap<>();
+        """.strip())
+
+        for addr, func in sorted(text_map.items()):
+            print(f"        map.put({func.name}, this::{func.name});")
+
+        print("        return map;")
+        print("    }")
+        print()
+
         for addr, func in sorted(text_map.items()):  # type: int, Function
+            # build_val(func) gen by build_link(func)
             build_link(func)
 
     write_cls("link", "KotlinCPU", bfp)
 
-    with captrue_stdout() as bfp:
-        for addr, func in sorted(text_map.items()):
-            build_val(func)
+    # noinspection PyUnreachableCode
+    if False:
+        with captrue_stdout() as bfp:
+            for mapping in firmware.common_map,:
+                for addr, func in sorted(mapping.items()):
+                    build_val(func)
 
-        for addr, func in sorted(symbol_map.items()):
-            build_val(func)
+        write_cls("vals", None, bfp)
 
-    write_cls("vals", None, bfp)
+    # noinspection PyUnreachableCode
+    if False:
+        path_mpy_files = "build/build/frozen.o", "build/build/frozen_mpy.o"
+
+        with captrue_stdout() as bfp:
+            for mapping in firmware.rodata_map,:
+                for addr, func in sorted(mapping.items()):
+                    if func.path in path_mpy_files and func.name in MP_FROZEN_MPY_CONSTS:
+                        build_val(func)
+
+        write_cls("frozen", None, bfp)
 
     for category, funcs in functions.items():
         parent = parents[category]
@@ -592,26 +625,6 @@ package %package%;
 
         write_cls(category, parent, bfp)
 
-    with captrue_stdout() as bfp:
-        print(end="    ")
-        print("""
-    @Override
-    @NotNull
-    protected HashMap<Integer, Callback> gen_hints() {
-        HashMap<Integer, Callback> map = new HashMap<>();
-""".strip())
-
-        for addr, func in sorted(text_map.items()):
-            print(f"        map.put({func.name}, this::{func.name});")
-
-        print("        return map;")
-        print("    }")
-        print()
-
-        for addr, func in sorted(text_map.items()):
-            build_prototype(func)
-
-    write_cls(None, "main", bfp)
 
 
 if __name__ == '__main__':
