@@ -11,6 +11,7 @@ class Function:
     path: str
 
     has_indirect: bool = False
+    point_set: Set[int] = field(default_factory=set, repr=False, hash=False)
     joint_set: Set[int] = field(default_factory=set, repr=False, hash=False)
     stop_set: Set[int] = field(default_factory=set, repr=False, hash=False)
 
