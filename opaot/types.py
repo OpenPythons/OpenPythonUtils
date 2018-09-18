@@ -323,9 +323,9 @@ class InsnAddr(Insn):
 
     def dest_pc(self, pc):
         if self.Rs == Reg.pc:
-            return (pc + 4) & (0b11111111_11111111_11111111_11111101)
+            return (self.soffset.value + pc + 4) & (0b11111111_11111111_11111111_11111101)
         else:
             raise Exception(self.Rs)
 
     def __str__(self):
-        return f"{self.op} {self.Rd}, {self.soffset}"
+        return f"{self.op} {self.Rd}, {self.Rs}, {self.soffset}"

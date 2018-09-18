@@ -1,11 +1,9 @@
 import io
-import pickle
 import re
 import sys
 from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
-from pprint import pprint
 from typing import Optional
 
 from opaot.errors import UnknownInstructionException, UnsupportedInstructionException
@@ -14,8 +12,8 @@ from opaot.types import *
 from opsim.address import MemoryMap
 from opsim.cpu import CPU
 from opsim.firmware import firmware
-from opsim.types import Function
 from opsim.state import CpuState
+from opsim.types import Function
 from opsim.util import from_bytes
 
 firmware.build()
@@ -166,6 +164,9 @@ def walk(func: Function, pc, *, indent=1, visited=None, do_write):
             if next_pc is not None:
                 func.joint_set.add(next_pc - func.address)
 
+                if insn.op == Op.BL or insn.op == Op.BLX:
+                    func.point_set.add(next_pc - func.address)
+
         if next_pc is None:
             func.stop_set.add(pc - func.address)
             return
@@ -202,12 +203,14 @@ def build_body(func: Function):
     print(f"    protected void {func.name}(int offset) throws Exception")
     print("    {")
 
-    write = lambda line, end=None: print(f"        {line};", end=end)
+    write = lambda line, end=None, semi=";": print(f"        {line}{semi}", end=end)
     if not is_clean:
-        write(f"pc = {conv(func.name)} + offset")
-        write = lambda line, end=None: print(f"                {line};", end=end)
-        print("        switch (offset)")
+        write = lambda line, end=None, semi=";": print(f"                    {line}{semi}", end=end)
+        print("        while (true)")
         print("        {")
+        print(f"            pc = {conv(func.name)} + offset;")
+        print("            switch (offset)")
+        print("            {")
     else:
         write("assert offset == 0")
         write(f"pc = {conv(func.name)} + offset")
@@ -229,7 +232,7 @@ def build_body(func: Function):
 
             pc_offset = pc - func.address
             if not is_clean and pc_offset in func.joint_set:
-                print(f"            case {pc_offset}:")
+                print(f"                case {pc_offset}:")
 
             try:
                 insn = parse(pc, read_ushort(pc), read_ushort(pc + 2))
@@ -243,17 +246,23 @@ def build_body(func: Function):
             target: Optional[int] = None
             branch_args = ""
             branch_link_arg = ""
+            branch_offset = None
+            cb_offset = None
 
             if insn.op == Op.BL or insn.op == Op.BLX or isinstance(insn, InsnSVC):
                 cb_offset = pc_offset + (2 if insn.op != Op.BL else 4)
                 branch_link_arg = f"{conv(func.name)} + {cb_offset} | 1, {cb_offset}"
+                func.point_set.add(cb_offset)
 
             if isinstance(insn, (InsnBranch, InsnLongBranch, InsnBranchIf, InsnBranchIf2, InsnBranch2)):
                 if isinstance(insn.dest, Offset):
                     target = insn.dest.target
                     new_func = text_map[target]
                     new_func_name = f"this::{new_func.name}" if new_func != func else "null"
-                    if isinstance(insn, InsnBranchIf) and func == new_func:
+                    if func == new_func:
+                        branch_offset = target - new_func.address
+
+                    if isinstance(insn, InsnBranchIf):
                         branch_args = f"{target - new_func.address}"
                     elif func == new_func or (target - new_func.address) != 0:
                         branch_args = f"{new_func_name}, {target - new_func.address}"
@@ -268,7 +277,7 @@ def build_body(func: Function):
                     write(f"{insn.dest!r} = {insn.op}({insn.src!r})")
                     if insn.dest == Reg.pc:
                         if not is_clean:
-                            write("b(pc); // auto")
+                            write("autob(pc); // auto")
                             write("return")
                         break
                 elif insn.op == Op.CMP or insn.op == Op.TSTS or insn.op == Op.CMN:
@@ -305,14 +314,15 @@ def build_body(func: Function):
                         if mfunc is not None:
                             if (mvalue & THUMB_MASK) == mfunc.address:
                                 write(f"{insn.dest} = mov({conv(mfunc.name)} | 1)")
-                                write(f"hint({conv(mfunc.name)} | 1, this::{mfunc.name})")
+                                # write(f"hint({conv(mfunc.name)} | 1, this::{mfunc.name})")
                             else:
                                 raise Exception("invalid memory read (?)")
                         else:
                             assert insn.op == Op.LDR
                             vfunc = symbol_map[mvalue]
                             if vfunc is not None and mvalue == vfunc.address:
-                                write(f"{insn.dest} = {insn.op}({func.name} + {maddr - func.address}); // {conv(vfunc.name)}")
+                                write(
+                                    f"{insn.dest} = {insn.op}({func.name} + {maddr - func.address}); // {conv(vfunc.name)}")
                             else:
                                 write(f"{insn.dest} = {insn.op}({func.name} + {maddr - func.address})")
                                 # write(f"{insn.dest} = mov({hvalue})")
@@ -326,8 +336,9 @@ def build_body(func: Function):
                 else:
                     assert False, insn.op
             elif isinstance(insn, InsnAddr):
-                if insn.Rd == Reg.pc:
-                    write(f"{insn.Rd!r} = {insn.op}({insn.Rs!r}, {hex(insn.dest_pc(pc))})")
+                if insn.Rs == Reg.pc:
+                    write(
+                        f"{insn.Rd!r} = {insn.op}({insn.Rs!r}, {insn.dest_pc(pc) - pc!r}); // pc + {insn.soffset.value}")
                 else:
                     write(f"{insn.Rd!r} = {insn.op}({insn.Rs!r}, {insn.soffset!r})")
             elif isinstance(insn, InsnStack):
@@ -353,19 +364,32 @@ def build_body(func: Function):
 
                 write(f"{insn.Rb} = {insn.op}({insn.Rb!r}, {regs_s})")
             elif isinstance(insn, (InsnBranch, InsnLongBranch)):
-                if target is not None:
-                    write(f"{insn.op}({branch_args})")
+                if insn.op == Op.B and branch_offset is not None:
+                    write("step()")
+                    write(f"offset = {branch_offset}")
+                    write(f"continue")
                 else:
-                    if insn.op == Op.BLX:
-                        write(f"{insn.op}({insn.dest!r}, {branch_link_arg})")
+                    if target is not None:
+                        write(f"{insn.op}({branch_args})")
                     else:
-                        write(f"{insn.op}({insn.dest!r})")
+                        if insn.op == Op.BLX:
+                            write(f"{insn.op}({insn.dest!r}, {branch_link_arg})")
+                        elif insn.op == Op.BL:
+                            # TODO: joint_set is full
+                            write("crash(); // error")
+                        else:
+                            write(f"{insn.op}({insn.dest!r})")
 
-                if not is_clean:
-                    write("return")
+                    if not is_clean:
+                        write("return")
                 break
             elif isinstance(insn, InsnBranchIf):
-                if target is not None:
+                if branch_offset is not None:
+                    write(f"if ({insn.op}()) {{", semi="")
+                    write(f"    offset = {branch_offset}")
+                    write(f"    continue")
+                    write(f"}}", semi="")
+                elif target is not None:
                     write(f"if ({insn.op}({branch_args})) return")
                 else:
                     write(f"if ({insn.op}({insn.dest!r})) return")
@@ -389,8 +413,9 @@ def build_body(func: Function):
             write("crash(); // auto leave")
 
     if not is_clean:
-        print("            default:")
+        print("                default:")
         write("crash()")
+        print("            }")
         print("        }")
 
     print("    }")
@@ -418,7 +443,7 @@ def captrue_stdout(captrue=True, *, mirror=False):
 
 
 def main():
-    for mapping in text_map, symbol_map:
+    for mapping in text_map,:  # symbol_map
         for func in mapping.values():
             func.name = func.name.replace(".", "_")
 
@@ -429,6 +454,7 @@ def main():
             if func.name not in funcs:
                 funcs[func.name] = func
             else:
+                assert False
                 cnt = counter[func.name]
                 if cnt == 1:
                     funcs[func.name].name += "__0"
@@ -447,6 +473,19 @@ def main():
         if do_write:
             Path("fw_aot.txt").write_text(stdout.getvalue())
         # exit()
+
+    for addr in range(flash.address, flash.address_until, 4):
+        if read_int(addr) in flash:
+            func = text_map[addr]
+            if func is None:
+                continue
+
+            if func.name in ("__aeabi_fmul",):
+                for offset in range(0, max(func.joint_set), 2):
+                    func.joint_set.add(offset)
+
+                # print(func, addr, addr - func.address)
+                # func.joint_set.add(addr - func.address)
 
     for addr, func in text_map.items():
         assert addr in flash
@@ -493,6 +532,22 @@ def main():
         "system": "link",
     }
 
+    rtext_dict = {func.name: func for func in text_map.values()}
+
+    found = False
+    for addr, func in symbol_map.items():
+        if func.name.startswith("entry_table."):
+            assert not found
+            found = True
+            print(func)
+            mp_execute_bytecode = rtext_dict["mp_execute_bytecode"]  # type: Function
+            for i in range(256):
+                case_addr = read_int(func.address + i * 4)
+                assert mp_execute_bytecode.address <= case_addr <= mp_execute_bytecode.address + mp_execute_bytecode.size, (
+                    case_addr, mp_execute_bytecode)
+                mp_execute_bytecode.point_set.add(case_addr - mp_execute_bytecode.address)
+                walk(mp_execute_bytecode, case_addr, do_write=False)
+
     for addr, func in sorted(text_map.items()):  # type: int, Function
         for prefix, name in categories.items():
             if func.path.startswith(prefix):
@@ -517,6 +572,7 @@ def main():
                 header = """
 package %package%;
 
+import kotlin.Pair;
 import kr.pe.ecmaxp.thumbjk.Callback;
 import kr.pe.ecmaxp.thumbjk.KotlinCPU;
 import kr.pe.ecmaxp.thumbjk.InterruptHandler;
@@ -572,29 +628,6 @@ package %package%;
         print("update", path.name)
         path.write_text(clsbuf)
 
-
-    with captrue_stdout() as bfp:
-        print(end="    ")
-        print("""
-    @Override
-    @NotNull
-    protected HashMap<Integer, Callback> gen_hints() {
-        HashMap<Integer, Callback> map = new HashMap<>();
-        """.strip())
-
-        for addr, func in sorted(text_map.items()):
-            print(f"        map.put({func.name}, this::{func.name});")
-
-        print("        return map;")
-        print("    }")
-        print()
-
-        for addr, func in sorted(text_map.items()):  # type: int, Function
-            # build_val(func) gen by build_link(func)
-            build_link(func)
-
-    write_cls("link", "KotlinCPU", bfp)
-
     # noinspection PyUnreachableCode
     if False:
         with captrue_stdout() as bfp:
@@ -625,6 +658,54 @@ package %package%;
 
         write_cls(category, parent, bfp)
 
+    with captrue_stdout() as bfp:
+        hints = []
+        for addr, func in sorted(text_map.items()):
+            if func.name.startswith("__aeabi"):
+                func.point_set = func.joint_set
+
+            hints.append((func.name, 0))
+            if func.point_set:
+                for offset in sorted(func.point_set):
+                    if offset != 0:
+                        hints.append((func.name, offset))
+
+        count = 0
+        while hints:
+            count += 1
+            print(f"    private void gen_hints_{count}() {{")
+
+            for i in range(500):
+                if not hints:
+                    break
+
+                name, offset = hints.pop(0)
+                print(f"        hint({name}, this::{name}, {offset});")
+            else:
+                print("    }")
+                print()
+                continue
+
+            print("    }")
+            print()
+            break
+
+        print("    " + ("""
+    @Override
+    protected void gen_hints() {
+        """).strip())
+
+        for i in range(1, count + 1):
+            print(f"        gen_hints_{i}();")
+
+        print("    }")
+        print()
+
+        for addr, func in sorted(text_map.items()):  # type: int, Function
+            # build_val(func) gen by build_link(func)
+            build_link(func)
+
+    write_cls("link", "KotlinCPU", bfp)
 
 
 if __name__ == '__main__':

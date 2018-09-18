@@ -189,7 +189,7 @@ def parse(addr, code, next_code=None):
             return InsnAddr(Op.ADD, Rd, Reg.sp, offset)  # ADD Rd, SP, #Imm
         else:
             # (side-effect) || REGS[PC] + 4 and I1.inv()
-            return InsnAddr(Op.ADR, Rd, Reg.pc, offset)  # ADD Rd, PC, #Imm
+            return InsnAddr(Op.ADD, Rd, Reg.pc, offset)  # ADD Rd, PC, #Imm
     elif prefix == 11:  #
         prefix = code >> 8 & L4
         if prefix == 0:  # add offset to Stack Pointer
