@@ -1,0 +1,11 @@
+[package]
+name = "optvm"
+version = "0.1.0"
+authors = ["EcmaXp <ecmaxp@ecmaxp.pe.kr>"]
+
+[lib]
+crate_type = ["cdylib"]
+
+[dependencies]
+jni = "0.10.2"
+lazy_static = "1.1.0"
