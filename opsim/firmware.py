@@ -3,6 +3,7 @@ from pathlib import Path
 from subprocess import check_call, DEVNULL
 from typing import Dict
 
+from oprom.build import build
 from opsim.exc import UmpsimFirmwareMissingException
 from opsim.types import Function
 from opsim.util import MapLookupTable
@@ -27,12 +28,7 @@ class Firmware:
         return self.buffer.__getitem__(item)
 
     def build(self):
-        check_call(
-            ["wsl", "make", "-j8"],
-            cwd=str(self.rom_folder),
-            shell=True,
-            stdin=DEVNULL
-        )
+        build(self.rom_folder)
 
     def refresh(self):
         if not self.path.exists():
