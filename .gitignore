@@ -101,9 +101,3 @@ ENV/
 
 # cmake-build-xxx
 cmake-build-*/
-
-# ignore ThumbAlt
-/ThumbAlt/
-/CMakeLists.txt
-opaot/scripts/*.txt
-opaot/scripts/*.pickle
