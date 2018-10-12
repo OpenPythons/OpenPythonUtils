@@ -5,8 +5,8 @@ from pprint import pprint
 
 from unicorn.arm_const import UC_ARM_REG_PC
 
-from opsim.address import MemoryMap
-from opsim.firmware import firmware
+from oputil.opsim import MemoryMap
+from oputil.opsim import firmware
 
 # noinspection PyUnresolvedReferences
 __all__ = ["ThumbSJ", "run_sj"]

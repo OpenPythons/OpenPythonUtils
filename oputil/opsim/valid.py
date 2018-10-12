@@ -1,7 +1,7 @@
 from unicorn.arm_const import UC_ARM_REG_CPSR
 
-from opsim.regs import REGS, REGS_NAME
-from opsim.util import from_bytes, get_CPSR, hex32
+from oputil.opsim import REGS, REGS_NAME
+from oputil.opsim.util import from_bytes, get_CPSR, hex32
 
 
 def check_failures(cpu, sim):

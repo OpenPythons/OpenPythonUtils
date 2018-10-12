@@ -3,8 +3,8 @@ from keystone import *
 from unicorn import *
 from unicorn.arm_const import *
 
-from opsim.regs import REGS, REGS_NAME
-from opsim.util import hex32
+from oputil.opsim import REGS
+from oputil.opsim.util import hex32
 
 ks = Ks(KS_ARCH_ARM, KS_MODE_THUMB)
 uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB)

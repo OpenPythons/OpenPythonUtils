@@ -2,7 +2,7 @@ from bisect import bisect_right
 from collections import Mapping
 from typing import Dict, Optional, Tuple
 
-from opsim.types import Function
+from oputil.opsim.types import Function
 
 
 def from_bytes(b):

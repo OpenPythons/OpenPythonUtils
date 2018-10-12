@@ -3,7 +3,7 @@ from typing import Union
 
 from dataclasses import dataclass
 
-from opaot.consts import PC
+from oputil.opaot import PC
 
 
 class Op(Enum):

@@ -1,7 +1,7 @@
 from capstone import CS_ARCH_ARM, Cs, CS_MODE_THUMB
 
-from opaot.errors import UnsupportedInstructionException, UnknownInstructionException
-from opaot.parser import parse
+from oputil.opaot import UnsupportedInstructionException, UnknownInstructionException
+from oputil.opaot.parser import parse
 
 
 cs = Cs(CS_ARCH_ARM, CS_MODE_THUMB)

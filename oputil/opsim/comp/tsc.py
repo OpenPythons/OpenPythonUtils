@@ -5,12 +5,12 @@ from threading import Thread
 
 from unicorn.arm_const import *
 
-from opsim.address import MemoryMap, PeripheralAddress
-from opsim.cpu import CPU
-from opsim.firmware import firmware
-from opsim.ports.cs import ThumbSC, HookMemory
-from opsim.state import CpuState
-from opsim.valid import check_failures, print_failures
+from oputil.opsim import MemoryMap, PeripheralAddress
+from oputil.opsim.cpu import CPU
+from oputil.opsim import firmware
+from oputil.opsim import ThumbSC, HookMemory
+from oputil.opsim.state import CpuState
+from oputil.opsim.valid import check_failures, print_failures
 
 
 def main():

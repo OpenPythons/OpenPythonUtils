@@ -5,11 +5,11 @@ from pathlib import Path
 
 from unicorn.arm_const import *
 
-from opsim.cpu import CPU
-from opsim.firmware import firmware
-from opsim.ports.java import ThumbSJ, ready_sim_java, trace_code_java
-from opsim.state import CpuState
-from opsim.valid import check_failures, print_failures
+from oputil.opsim.cpu import CPU
+from oputil.opsim import firmware
+from oputil.opsim import ThumbSJ, ready_sim_java, trace_code_java
+from oputil.opsim.state import CpuState
+from oputil.opsim.valid import check_failures, print_failures
 
 
 def run_test(cpu, state, code, fast_cycle):

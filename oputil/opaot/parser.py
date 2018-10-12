@@ -1,9 +1,8 @@
 # noinspection PyPep8Naming
 # noinspection SpellCheckingInspection
 
-from opaot.consts import I7, I8, I9, I10, I11, I12, L1, L2, L3, L4, L5, L7, L8, L10, L11
-from opaot.errors import UnsupportedInstructionException, UnknownInstructionException
-from opaot.types import *
+from oputil.opaot import I7, I8, I9, I10, I11, I12, L1, L2, L3, L4, L5, L7, L8, L10, L11
+from oputil.opaot import UnsupportedInstructionException, UnknownInstructionException
 
 
 def parse(addr, code, next_code=None):

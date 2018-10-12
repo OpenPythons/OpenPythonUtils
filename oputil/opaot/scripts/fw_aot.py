@@ -6,15 +6,14 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
-from opaot.errors import UnknownInstructionException, UnsupportedInstructionException
-from opaot.parser import parse
-from opaot.types import *
-from opsim.address import MemoryMap
-from opsim.cpu import CPU
-from opsim.firmware import firmware
-from opsim.state import CpuState
-from opsim.types import Function
-from opsim.util import from_bytes
+from oputil.opaot import UnknownInstructionException, UnsupportedInstructionException
+from oputil.opaot.parser import parse
+from oputil.opsim import MemoryMap
+from oputil.opsim.cpu import CPU
+from oputil.opsim import firmware
+from oputil.opsim.state import CpuState
+from oputil.opsim.types import Function
+from oputil.opsim.util import from_bytes
 
 firmware.build()
 

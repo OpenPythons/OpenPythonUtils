@@ -1,12 +1,11 @@
 from itertools import chain
 from pathlib import Path
-from subprocess import check_call, DEVNULL
 from typing import Dict
 
 from oprom.build import build
-from opsim.exc import UmpsimFirmwareMissingException
-from opsim.types import Function
-from opsim.util import MapLookupTable
+from oputil.opsim.exc import UmpsimFirmwareMissingException
+from oputil.opsim.types import Function
+from oputil.opsim.util import MapLookupTable
 
 
 class Firmware:

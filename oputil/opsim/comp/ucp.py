@@ -1,9 +1,9 @@
 import faulthandler
 from threading import Thread
 
-from opsim.cpu import CPU
-from opsim.firmware import firmware
-from opsim.state import CpuState
+from oputil.opsim.cpu import CPU
+from oputil.opsim import firmware
+from oputil.opsim.state import CpuState
 from unicorn.arm_const import *
 
 

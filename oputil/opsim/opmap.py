@@ -1,11 +1,9 @@
-import sys
 from pathlib import Path
-from pprint import pprint
 
 from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB
 
-from opsim.firmware import Firmware
-from opsim.util import from_bytes
+from oputil.opsim import Firmware
+from oputil.opsim.util import from_bytes
 
 oprom_path = (Path(__file__).parent / "../oprom")
 build_path = oprom_path / "build"
