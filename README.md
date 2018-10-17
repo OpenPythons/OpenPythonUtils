@@ -1,1 +1,3 @@
-# UMP-OC
+# OpenPie
+
+Micropython for OpenComputer (with ThumbSJ)
