@@ -193,13 +193,13 @@ class CPU:
     def hook_peripheral_write(self, uc: Uc, access, address, size, value, data):
         if address == PeripheralAddress.OP_CON_PENDING:
             if self.verbose >= 1:
-                print("OPENPIE_CONTROLLER_PENDING", value)
+                print("OPENPYTHON_CONTROLLER_PENDING", value)
         elif address == PeripheralAddress.OP_CON_EXCEPTION:
             if self.verbose >= 1:
-                print("OPENPIE_CONTROLLER_EXCEPTION", value)
+                print("OPENPYTHON_CONTROLLER_EXCEPTION", value)
         elif address == PeripheralAddress.OP_CON_INTR_CHAR:
             if self.verbose >= 1:
-                print("OPENPIE_CONTROLLER_INTR_CHAR", value)
+                print("OPENPYTHON_CONTROLLER_INTR_CHAR", value)
         elif address == PeripheralAddress.OP_IO_TXR:
             self.state.output_storage.append(value)
             if self.state.write_to_stdout:

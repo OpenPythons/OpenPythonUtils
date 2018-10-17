@@ -1,6 +1,6 @@
 from pathlib import Path
 
-path = Path(r"C:\Users\EcmaXp\Dropbox\Projects\OpenPie\opmod\src\main\java\kr\pe\ecmaxp\thumbsk\CPU.kt")
+path = Path(r"C:\Users\EcmaXp\Dropbox\Projects\OpenPython\opmod\src\main\java\kr\pe\ecmaxp\thumbsk\CPU.kt")
 
 prefix_blank = None
 

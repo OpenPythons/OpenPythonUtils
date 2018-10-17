@@ -614,7 +614,7 @@ package %package%;
     """).strip().replace("%name%", clsname)
         )
 
-    folder = Path(r"C:\Users\EcmaXp\Dropbox\Projects\OpenPie\opmod\src\main\java\kr\pe\ecmaxp\micropython\example")
+    folder = Path(r"C:\Users\EcmaXp\Dropbox\Projects\OpenPython\opmod\src\main\java\kr\pe\ecmaxp\micropython\example")
 
     def write_cls(name, parent: Optional[str], bfp):
         fname = f"MicroPython_{name}.java" if name else f"MicroPython.java"
