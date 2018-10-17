@@ -1,3 +1,3 @@
 # OpenPython
 
-Micropython for OpenComputer (with ThumbSJ)
+Micropython for OpenComputer (with ThumbSK)
