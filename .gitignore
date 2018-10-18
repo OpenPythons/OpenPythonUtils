@@ -102,3 +102,6 @@ ENV/
 # cmake-build-xxx
 cmake-build-*/
 /CMakeLists.txt
+
+# manually repack 
+/opmod/src/main/java/kr/pe/ecmaxp/openpython/repack/
