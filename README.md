@@ -17,7 +17,7 @@ Limitations include:
 - The firmware is 256 KB and the memory limit has the same limit as the Lua architecture, but the stack is allocated in a separate memory.
 - Most modules are difficult to use because the battery is partially included.
 - The operating system is not yet fully implemented, so the Python interpreter now runs.
-- Ctrl + C is not supported, so if you accidentally run infinite repeated code
+- Ctrl + C is not supported, so if you accidentally run infinite repeated code, the only way to stop it is to turn the computer off and then on.
 
 To use the Python architecture, you need the following items:
 - EEPROM (OpenPython): I'm sorry, but you have to bring items from the Creative tab.
