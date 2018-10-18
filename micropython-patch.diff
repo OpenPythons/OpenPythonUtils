@@ -1,0 +1,43 @@
+--- extmod/vfs_reader.c
++++ extmod/vfs_reader.c
+@@ -38,7 +38,7 @@ typedef struct _mp_reader_vfs_t {
+     mp_obj_t file;
+     uint16_t len;
+     uint16_t pos;
+-    byte buf[24];
++    byte buf[4088];
+ } mp_reader_vfs_t;
+ 
+ STATIC mp_uint_t mp_reader_vfs_readbyte(void *data) {
+--- py/makeversionhdr.py
++++ py/makeversionhdr.py
+@@ -21,7 +21,7 @@ def get_version_info_from_git():
+ 
+     # Note: git describe doesn't work if no tag is available
+     try:
+-        git_tag = subprocess.check_output(["git", "describe", "--dirty", "--always"], stderr=subprocess.STDOUT, universal_newlines=True).strip()
++        git_tag = subprocess.check_output(["git", "describe", "--dirty", "--always"], stderr=subprocess.STDOUT, universal_newlines=True, cwd=os.path.dirname(sys.argv[0])).strip()
+     except subprocess.CalledProcessError as er:
+         if er.returncode == 128:
+             # git exit code of 128 means no repository found
+@@ -30,7 +30,7 @@ def get_version_info_from_git():
+     except OSError:
+         return None
+     try:
+-        git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.STDOUT, universal_newlines=True).strip()
++        git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.STDOUT, universal_newlines=True, cwd=os.path.dirname(sys.argv[0])).strip()
+     except subprocess.CalledProcessError:
+         git_hash = "unknown"
+     except OSError:
+@@ -38,9 +38,9 @@ def get_version_info_from_git():
+ 
+     try:
+         # Check if there are any modified files.
+-        subprocess.check_call(["git", "diff", "--no-ext-diff", "--quiet", "--exit-code"], stderr=subprocess.STDOUT)
++        subprocess.check_call(["git", "diff", "--no-ext-diff", "--quiet", "--exit-code"], stderr=subprocess.STDOUT, cwd=os.path.dirname(sys.argv[0]))
+         # Check if there are any staged files.
+-        subprocess.check_call(["git", "diff-index", "--cached", "--quiet", "HEAD", "--"], stderr=subprocess.STDOUT)
++        subprocess.check_call(["git", "diff-index", "--cached", "--quiet", "HEAD", "--"], stderr=subprocess.STDOUT, cwd=os.path.dirname(sys.argv[0]))
+     except subprocess.CalledProcessError:
+         git_hash += "-dirty"
+     except OSError:
