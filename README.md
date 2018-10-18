@@ -1,6 +1,8 @@
 # OpenPython
 
-OpenPython makes micropython available on OpenComputers.
+![Python Interpreter in OpenPython v1.0](https://user-images.githubusercontent.com/21021916/47162981-0163aa80-d330-11e8-9e54-7b470a5e67b0.png)
+
+**OpenPython makes micropython available on OpenComputers.**
 
 micropython is Python for embedded devices and is different from CPython.
 Currently, micropython is partially compatible with Python version 3.4 as of October 2018.
