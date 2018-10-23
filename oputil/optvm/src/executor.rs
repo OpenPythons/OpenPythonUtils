@@ -13,7 +13,7 @@ use memory::Content;
 use memory::Memory;
 
 //noinspection RsVariableNaming
-pub fn execute(cpu: &mut CPU) {
+pub unsafe fn execute(cpu: &mut CPU) {
     let regs: &mut Vec<i32> = &mut cpu.regs;
     let memory: &mut Memory = &mut cpu.memory;
     let cache: &Vec<Instruction> = &mut cpu.cache2;
@@ -49,7 +49,7 @@ pub fn execute(cpu: &mut CPU) {
             ERROR => { panic!("throw UnknownInstructionException()"); }
             // Format 1: move shifted register
             LSLSI => { // LSL Rd, Rs, #Offset5
-                let left = regs[code.Rs];
+                let left = regs.get_unchecked(code.Rs).clone();
                 let right = code.imm16; // 0 ~ 31
                 let value = left << right;
 
@@ -797,16 +797,19 @@ pub fn execute(cpu: &mut CPU) {
                 */
 
                 pc += 2;
-                match (regs[7], regs[0]) {
-                    (5, _) => {
+                match regs[7] {
+                    0x010000 => {
                         for i in regs[0]..(regs[0] + regs[1]) {
                             print!("{}", memory.read_u8(i as u32) as char);
                         }
                     }
-                    (10, 10) => {
-                        // println!("INTERRUPT");
+                    0x070002 => {
+                        regs[0] = 256 * 1024;
                     }
-                    (10, 11) => {
+                    0x08000B => {
+                        regs[0] = 0;
+                    }
+                    11 => {
                         return;
                     }
                     _ => {

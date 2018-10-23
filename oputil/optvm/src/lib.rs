@@ -10,10 +10,10 @@ use jni::objects::{JClass};
 use jni::sys::jarray;
 use std::sync::Mutex;
 
-mod executor;
-mod decoder;
-mod memory;
-mod consts;
+pub mod executor;
+pub mod decoder;
+pub mod memory;
+pub mod consts;
 pub mod builder;
 
 lazy_static! {

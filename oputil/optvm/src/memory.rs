@@ -3,7 +3,6 @@
 pub enum Flag {
     RW,
     RX,
-    HOOK,
 }
 
 struct BufferRegion {

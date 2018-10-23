@@ -47,11 +47,9 @@ pub fn build() -> CPU {
     }
 
     // mapping memory
-    memory.map(0x60000000, 192 * 1024);
-    memory.map(0x40000000, 4 * 1024);
     memory.map(0x20000000, 64 * 1024);
+    memory.map(0x60000000, 256 * 1024);
     memory.map(0xE0000000, 16 * 1024);
-    memory.map(0xE1000000, 2 * 1024);
 
     let mut cache = vec![0i32; 256 * 1024];
     let mut cache2: Vec<Instruction> = Vec::with_capacity(256 * 1024);

@@ -10,42 +10,43 @@ use memory::Content;
 use memory::Memory;
 use std::io::prelude::*;
 
-pub fn insnx2(op: u8, rd: usize, imm32: i32) -> (i32, i32) {
+fn insnx2(op: u8, rd: usize, imm32: i32) -> (i32, i32) {
     (op as i32 | ((rd as i32) << 8), imm32)
 }
 
-pub fn insnx1(op: u8, imm32: i32) -> (i32, i32) {
+fn insnx1(op: u8, imm32: i32) -> (i32, i32) {
     (op as i32, imm32)
 }
 
-pub fn insni3(op: u8, rd: usize, rs: usize, imm16: i16) -> (i32, i32) {
+fn insni3(op: u8, rd: usize, rs: usize, imm16: i16) -> (i32, i32) {
     (op as i32 | ((rd as i32) << 8) | ((rs as i32) << 12) | ((imm16 as i32) << 16), 0)
 }
 
-pub fn insni2(op: u8, rd: usize, imm16: i16) -> (i32, i32) {
+fn insni2(op: u8, rd: usize, imm16: i16) -> (i32, i32) {
     (op as i32 | ((rd as i32) << 8) | ((imm16 as i32) << 16), 0)
 }
 
-pub fn insni1(op: u8, imm16: i16) -> (i32, i32) {
+fn insni1(op: u8, imm16: i16) -> (i32, i32) {
     (op as i32 | ((imm16 as i32) << 16), 0)
 }
 
-pub fn insn3(op: u8, rd: usize, rs: usize, rn: usize) -> (i32, i32) {
+fn insn3(op: u8, rd: usize, rs: usize, rn: usize) -> (i32, i32) {
     (op as i32 | ((rd as i32) << 8) | ((rs as i32) << 12) | ((rn as i32) << 16), 0)
 }
 
-pub fn insn2(op: u8, rd: usize, rs: usize) -> (i32, i32) {
+fn insn2(op: u8, rd: usize, rs: usize) -> (i32, i32) {
     (op as i32 | ((rd as i32) << 8) | ((rs as i32) << 12), 0)
 }
 
-pub fn insn1(op: u8, rd: usize) -> (i32, i32) {
+fn insn1(op: u8, rd: usize) -> (i32, i32) {
     (op as i32 | ((rd as i32) << 8), 0)
 }
 
-pub fn insn0(op: u8) -> (i32, i32) {
+fn insn0(op: u8) -> (i32, i32) {
     (op as i32, 0)
 }
 
+//noinspection SpellCheckingInspection
 fn name(op: i32) -> &'static str {
     return match op as u8 {
         LSLSI => { "LSLSI" }

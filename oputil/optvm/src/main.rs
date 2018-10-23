@@ -9,11 +9,11 @@
 use consts::*;
 use std::time::Instant;
 
-mod executor;
-mod decoder;
-mod memory;
-mod consts;
-mod builder;
+pub mod executor;
+pub mod decoder;
+pub mod memory;
+pub mod consts;
+pub mod builder;
 
 
 fn main() {
@@ -21,6 +21,9 @@ fn main() {
 
     // run simulator
     let start = Instant::now();
-    executor::execute(&mut cpu);
+    unsafe {
+        executor::execute(&mut cpu);
+    }
+
     println!("timer: {} ms", start.elapsed().as_millis());
 }
