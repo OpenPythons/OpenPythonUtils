@@ -1,32 +1,38 @@
---- py/makeversionhdr.py
-+++ py/makeversionhdr.py
-@@ -21,7 +21,7 @@ def get_version_info_from_git():
+diff --git a/py/makeversionhdr.py b/py/makeversionhdr.py
+index aedc292e4..d51167974 100644
+--- a/py/makeversionhdr.py
++++ b/py/makeversionhdr.py
+@@ -19,9 +19,11 @@ def get_version_info_from_git():
+     except AttributeError:
+         return None
  
++    cwd = os.path.dirname(sys.argv[0])
++
      # Note: git describe doesn't work if no tag is available
      try:
 -        git_tag = subprocess.check_output(["git", "describe", "--dirty", "--always"], stderr=subprocess.STDOUT, universal_newlines=True).strip()
-+        git_tag = subprocess.check_output(["git", "describe", "--dirty", "--always"], stderr=subprocess.STDOUT, universal_newlines=True, cwd=os.path.dirname(sys.argv[0])).strip()
++        git_tag = subprocess.check_output(["git", "describe", "--dirty", "--always"], stderr=subprocess.STDOUT, universal_newlines=True, cwd=cwd).strip()
      except subprocess.CalledProcessError as er:
          if er.returncode == 128:
              # git exit code of 128 means no repository found
-@@ -30,7 +30,7 @@ def get_version_info_from_git():
+@@ -30,7 +32,7 @@ def get_version_info_from_git():
      except OSError:
          return None
      try:
 -        git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.STDOUT, universal_newlines=True).strip()
-+        git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.STDOUT, universal_newlines=True, cwd=os.path.dirname(sys.argv[0])).strip()
++        git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.STDOUT, universal_newlines=True, cwd=cwd).strip()
      except subprocess.CalledProcessError:
          git_hash = "unknown"
      except OSError:
-@@ -38,9 +38,9 @@ def get_version_info_from_git():
+@@ -38,9 +40,9 @@ def get_version_info_from_git():
  
      try:
          # Check if there are any modified files.
 -        subprocess.check_call(["git", "diff", "--no-ext-diff", "--quiet", "--exit-code"], stderr=subprocess.STDOUT)
-+        subprocess.check_call(["git", "diff", "--no-ext-diff", "--quiet", "--exit-code"], stderr=subprocess.STDOUT, cwd=os.path.dirname(sys.argv[0]))
++        subprocess.check_call(["git", "diff", "--no-ext-diff", "--quiet", "--exit-code"], cwd=cwd, stderr=subprocess.STDOUT)
          # Check if there are any staged files.
 -        subprocess.check_call(["git", "diff-index", "--cached", "--quiet", "HEAD", "--"], stderr=subprocess.STDOUT)
-+        subprocess.check_call(["git", "diff-index", "--cached", "--quiet", "HEAD", "--"], stderr=subprocess.STDOUT, cwd=os.path.dirname(sys.argv[0]))
++        subprocess.check_call(["git", "diff-index", "--cached", "--quiet", "HEAD", "--"], cwd=cwd, stderr=subprocess.STDOUT)
      except subprocess.CalledProcessError:
          git_hash += "-dirty"
      except OSError:
