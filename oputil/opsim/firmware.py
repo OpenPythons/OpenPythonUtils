@@ -1,18 +1,21 @@
+from pprint import pprint
+
 from itertools import chain
 from pathlib import Path
 from typing import Dict
 
 from oprom.build import build
 from oputil.opsim.exc import UmpsimFirmwareMissingException
-from oputil.opsim.types import Function
+from oputil.opsim.types import RawFunction
 from oputil.opsim.util import MapLookupTable
 
 
 class Firmware:
-    def __init__(self, rom_folder: Path, path: Path, map_path: Path = None):
+    def __init__(self, rom_folder: Path, path: Path, *, map_path: Path = None, elf_path: Path = None):
         self.rom_folder = rom_folder
         self.path = Path(path)
         self.map_path = Path(map_path)
+        self.elf_path = Path(elf_path)
         self.buffer: bytes = None
         self.last_mtime: float = None
         self.text_map: MapLookupTable = None
@@ -23,7 +26,7 @@ class Firmware:
         self.symbol_map: MapLookupTable = None
 
     def __getitem__(self, item):
-        assert self.buffer != None
+        assert self.buffer is not None
         return self.buffer.__getitem__(item)
 
     def build(self):
@@ -44,120 +47,72 @@ class Firmware:
         return self.buffer
 
     def refresh_map(self):
-        if self.map_path is None:
-            return
+        assert self.map_path
+        assert self.elf_path
 
-        lines = self.map_path.read_text(encoding="utf-8").splitlines()
+        from oprom.build import process_elf, SimpleSymbol
+        from elftools.elf.elffile import ELFFile
 
-        def parse_section(prefix_name, section_name, next_section_name):
-            last_function = None
-            mapping: Dict[int, Function] = {}
-            buffer = None
-            prefix = None
+        from fpvgcc.fpv import process_map_file
+        from fpvgcc.gccMemoryMap import GCCMemoryMapNode
+        import logging
+        # noinspection PyUnresolvedReferences
+        logging.disable(logging.WARNING)
 
-            def parse_buffer():
-                nonlocal buffer, prefix, last_function
-                assert 1 <= len(buffer), buffer
-                addr, size, path = buffer[0]
-                name = prefix.lstrip(".")
+        symbols = {}
+        with self.elf_path.open('rb') as fp:
+            elf = ELFFile(fp)
+            for symbol in process_elf(elf):
+                symbols[symbol.name] = symbol
 
-                addr = int(addr, 16)
-                size = int(size, 16)
-                if last_function and last_function.size is None:
-                    last_function.size = addr - last_function.address
+        ignore_regions = {"DISCARDED", "UNDEF"}
+        sm = process_map_file(self.map_path)
 
-                mapping[addr] = last_function = Function(addr, size, name, path)
+        text_mapping = {}
+        rodata_mapping = {}
+        data_mapping = {}
+        bss_mapping = {}
 
-                for tokens in buffer[1:]:
-                    if not tokens:
-                        break
-
-                    assert tokens
-                    if tokens[0] == "*fill*":
-                        continue
-
-                    assert len(tokens) == 2, tokens
-                    new_addr, new_name = tokens
-                    new_addr = int(new_addr, 16)
-
-                    if new_addr == addr:
-                        mapping[addr].name = new_name
-                    else:
-                        if last_function.size is None:
-                            last_function.size = new_addr - last_function.address
-
-                        mapping[new_addr] = last_function = Function(new_addr, None, new_name, path)
-
-            enabled = False
-            for line in lines:
-                line = line.strip()
-                if section_name == line:
-                    enabled = True
+        def visit_region(region: GCCMemoryMapNode, mapping: Dict[int, RawFunction]):
+            for node in region.children:  # .children vs .all_nodes()
+                node: GCCMemoryMapNode
+                if node.name == "rodata":
+                    visit_region(node, rodata_mapping)
                     continue
-                elif next_section_name == line:
-                    parse_buffer()
-                    enabled = False
-                elif "(size before relaxing)" in line:
+                elif node.region in ignore_regions:
                     continue
-                elif ". =" in line or "= ." in line:
-                    continue
-                elif "LOADADDR" in line:
-                    continue
-                elif "0x0 " in line:
+                elif mapping is None:
                     continue
 
-                if not enabled:
-                    continue
+                address = node._address
+                mapping[address] = RawFunction(address, node.size, node.name, f"{node.arfolder}{node.objfile}")
 
-                if line.startswith(prefix_name):
-                    if buffer is not None:
-                        parse_buffer()
+        for region in sm.memory_map.root.children:  # type: GCCMemoryMapNode
+            if region.region in ignore_regions:
+                continue
 
-                    tokens = line.split()
-                    buffer = []
-                    if len(tokens) == 1:
-                        assert line.startswith(prefix_name)
-                        prefix = line[len(prefix_name):]
-                        continue
-                    else:
-                        prefix, *tokens = tokens
-                        buffer.append(tokens)
-                else:
-                    tokens = line.split()
-                    buffer.append(tokens)
+            mapping = {
+                "text": text_mapping,
+                "data": data_mapping,
+                "bss": bss_mapping,
+            }.get(region.name)
 
-            return MapLookupTable(mapping)
+            visit_region(region, mapping)
 
-        sections = ["text", "rodata", "data", "bss", "COMMON"]
-
-        def Section(x):
-            if x == "COMMON":
-                section_prefix = "COMMON"
-                section = "*(COMMON)"
-                next_section = "*(.ARM.attributes)"
-            else:
-                section_prefix = f".{x}"
-                section = f"*(.{x}*)"
-                next_section = f"*(.{sections[sections.index(x) + 1]}*)"
-                if x == "bss":
-                    next_section = "*(COMMON)"
-
-            return section_prefix, section, next_section
-
-        self.text_map = parse_section(*Section("text"))
-        self.rodata_map = parse_section(*Section("rodata"))
-        self.data_map = parse_section(*Section("data"))
-        self.bss_map = parse_section(*Section("bss"))
-        self.common_map = parse_section(*Section("COMMON"))
-        seqs = chain(self.rodata_map.seq, self.data_map.seq, self.bss_map.seq, self.common_map.seq)
+        self.text_map = MapLookupTable(text_mapping)
+        self.rodata_map = MapLookupTable(rodata_mapping)
+        self.data_map = MapLookupTable(data_mapping)
+        self.bss_map = MapLookupTable(bss_mapping)
+        seqs = chain(self.rodata_map.seq, self.data_map.seq, self.bss_map.seq)
         self.symbol_map = MapLookupTable(dict(seqs))
 
 
-oprom_path = (Path(__file__).parent / "../oprom")
+oprom_path = (Path(__file__).parent / "../../oprom")
 build_path = oprom_path / "build"
 
 firmware = Firmware(
     oprom_path,
     build_path / "firmware.bin",
-    build_path / "firmware.elf.map"
+    elf_path=build_path / "firmware.elf",
+    map_path=build_path / "firmware.elf.map"
 )

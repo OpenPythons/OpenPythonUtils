@@ -6,8 +6,8 @@ from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_MEM_READ, UC_HOOK_ME
     UC_HOOK_MEM_READ_UNMAPPED, UC_ERR_READ_UNMAPPED, UC_HOOK_CODE, UC_HOOK_INTR, UC_HOOK_MEM_WRITE_UNMAPPED
 from unicorn.arm_const import *
 
-from oputil.opsim import HELPER_FUNCTIONS
-from oputil.opsim import REGS, REGS_NAME
+from .debugger import HELPER_FUNCTIONS
+from .regs import REGS, REGS_NAME
 from .address import MemoryMap, MemoryRegion, PeripheralAddress
 from .firmware import Firmware
 from .state import CpuState
