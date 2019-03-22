@@ -8,7 +8,9 @@ use std::fs::File;
 use std::io::prelude::*;
 
 pub const FIRMWARE_ADDRESS: u32 = 0x08000000;
-pub const FIRMWARE_PATH: &str = r##"C:\Users\EcmaXp\Dropbox\Projects\OpenPie\oprom\build\firmware.bin"##;
+pub const FIRMWARE_PATH: &str = r##"C:\Users\EcmaXp\Dropbox\Projects\OpenPie\firmwares\debug\firmware.bin"##;
+// pub const FIRMWARE_PATH: &str = r##"firmware.bin"##;
+
 
 fn load_firmware(path: &str) -> Vec<u8> {
     let mut file = File::open(path).unwrap();

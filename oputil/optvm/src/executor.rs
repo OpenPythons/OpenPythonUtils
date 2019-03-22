@@ -797,27 +797,36 @@ pub unsafe fn execute(cpu: &mut CPU) {
                 */
 
                 pc += 2;
-                match regs[7] {
-                    0x010000 => {
+                let no = regs[7] as u32;
+                let major = no >> 16;
+                let minor = no & 0xFFFF;
+                let value = match (major, minor) {
+                    (2, 10) => {
+                        0
+                    }
+                    (2, 11) => {
+                        0
+                    }
+                    (7, 2) => {
+                        1024 * 128
+                    }
+                    (1, 0) => {
                         for i in regs[0]..(regs[0] + regs[1]) {
                             print!("{}", memory.read_u8(i as u32) as char);
                         }
+                        0
                     }
-                    0x070002 => {
-                        regs[0] = 256 * 1024;
-                    }
-                    0x08000B => {
-                        regs[0] = 0;
-                    }
-                    11 => {
+                    (2, 3) => {
                         return;
                     }
                     _ => {
                         println!("INTERRUPT");
                         println!("INTERRUPT POSITION={:x} code.imm16={} r7={} r0={} r1={} r2={} r3={}", pc, code.imm16, regs[7], regs[0], regs[1], regs[2], regs[3]);
-                        return;
+                        0
                     }
-                }
+                };
+
+                regs[0] = value;
             }
 
             // Format 18: unconditional branch
