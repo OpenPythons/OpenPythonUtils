@@ -1,19 +1,38 @@
+from typing import Optional, Set
+
+from dataclasses import field
+
 import io
 import re
 import sys
+# noinspection PyUnresolvedReferences
 from collections import Counter
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Optional
-
-from oputil.opaot import UnknownInstructionException, UnsupportedInstructionException
-from oputil.opaot.parser import parse
-from oputil.opsim import MemoryMap
+from oputil.opaot.instr.errors import UnknownInstructionException, UnsupportedInstructionException
+from oputil.opaot.instr.parser import parse
+from oputil.opaot.instr.types import *
+from oputil.opsim.firmware import firmware
+from oputil.opsim.address import MemoryMap
 from oputil.opsim.cpu import CPU
-from oputil.opsim import firmware
 from oputil.opsim.state import CpuState
-from oputil.opsim.types import Function
+from oputil.opsim.types import RawFunction
 from oputil.opsim.util import from_bytes
+# noinspection PyUnresolvedReferences
+from pathlib import Path
+
+
+@dataclass(unsafe_hash=True)
+class Function(RawFunction):
+    address: int
+    size: Optional[int]
+    name: str
+    path: str
+
+    has_indirect: bool = False
+    point_set: Set[int] = field(default_factory=set, repr=False, hash=False)
+    joint_set: Set[int] = field(default_factory=set, repr=False, hash=False)
+    stop_set: Set[int] = field(default_factory=set, repr=False, hash=False)
+
 
 firmware.build()
 
@@ -321,7 +340,8 @@ def build_body(func: Function):
                             vfunc = symbol_map[mvalue]
                             if vfunc is not None and mvalue == vfunc.address:
                                 write(
-                                    f"{insn.dest} = {insn.op}({func.name} + {maddr - func.address}); // {conv(vfunc.name)}")
+                                    f"{insn.dest} = {insn.op}({func.name} + {maddr - func.address});"
+                                    f" // {conv(vfunc.name)}")
                             else:
                                 write(f"{insn.dest} = {insn.op}({func.name} + {maddr - func.address})")
                                 # write(f"{insn.dest} = mov({hvalue})")
@@ -337,7 +357,8 @@ def build_body(func: Function):
             elif isinstance(insn, InsnAddr):
                 if insn.Rs == Reg.pc:
                     write(
-                        f"{insn.Rd!r} = {insn.op}({insn.Rs!r}, {insn.dest_pc(pc) - pc!r}); // pc + {insn.soffset.value}")
+                        f"{insn.Rd!r} = {insn.op}({insn.Rs!r}, {insn.dest_pc(pc) - pc!r});"
+                        f" // pc + {insn.soffset.value}")
                 else:
                     write(f"{insn.Rd!r} = {insn.op}({insn.Rs!r}, {insn.soffset!r})")
             elif isinstance(insn, InsnStack):

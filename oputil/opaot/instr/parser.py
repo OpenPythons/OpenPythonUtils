@@ -1,8 +1,9 @@
 # noinspection PyPep8Naming
 # noinspection SpellCheckingInspection
 
-from oputil.opaot import I7, I8, I9, I10, I11, I12, L1, L2, L3, L4, L5, L7, L8, L10, L11
-from oputil.opaot import UnsupportedInstructionException, UnknownInstructionException
+from .consts import I7, I8, I9, I10, I11, I12, L1, L2, L3, L4, L5, L7, L8, L10, L11
+from .errors import UnsupportedInstructionException, UnknownInstructionException
+from .types import *
 
 
 def parse(addr, code, next_code=None):
@@ -251,7 +252,7 @@ def parse(addr, code, next_code=None):
             if prefix == 0:
                 return Insn2(Op.REV, Rd, Rs)  # REV Rd, Rs
             elif prefix == 1:
-                raise UnsupportedInstructionException()  # REV16 Rd, Rs
+                return Insn2(Op.REV16, Rd, Rs)  # REV16 Rd, Rs
             elif prefix == 2:
                 raise UnknownInstructionException()  # INVALID
             elif prefix == 3:

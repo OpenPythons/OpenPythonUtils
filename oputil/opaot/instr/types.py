@@ -3,7 +3,7 @@ from typing import Union
 
 from dataclasses import dataclass
 
-from oputil.opaot import PC
+from .consts import PC
 
 
 class Op(Enum):
@@ -15,6 +15,7 @@ class Op(Enum):
     CMP = "cmp"
     CMN = "cmn"
     REV = "rev"
+    REV16 = "rev16"
 
     ADDS = "adds"
     SUBS = "subs"
@@ -80,9 +81,6 @@ class Op(Enum):
     BLH = "bl!"
     BLX = "blx"
     BX = "bx"
-
-
-
 
     def is_cmp(self):
         return self in (
