@@ -105,3 +105,9 @@ cmake-build-*/
 
 # manually repack 
 /opmod/src/main/java/kr/pe/ecmaxp/openpython/repack/
+
+# ignore some reference or cache
+/opencomputers/
+/oputil/opaot/scripts/fw_aot_rust/*.rs
+/opmod/src/main/resources/assets/openpython/firmwares/debug/
+/firmwares/debug/
